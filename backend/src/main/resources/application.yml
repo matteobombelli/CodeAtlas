@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: code-atlas
+  datasource:
+    url: ${CODE_ATLAS_DATABASE_URL:jdbc:postgresql://localhost:5432/code_atlas}
+    username: ${CODE_ATLAS_DATABASE_USERNAME:code_atlas}
+    password: ${CODE_ATLAS_DATABASE_PASSWORD:code_atlas}
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-components: always
+      show-details: never
+
+server:
+  shutdown: graceful

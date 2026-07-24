@@ -1,0 +1,12 @@
+.gradle/
+**/build/
+frontend/node_modules/
+frontend/dist/
+.idea/
+.vscode/
+*.iml
+.env
+.DS_Store
+playwright-report/
+test-results/
+benchmark-results/

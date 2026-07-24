@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: code_atlas
+      POSTGRES_USER: code_atlas
+      POSTGRES_PASSWORD: code_atlas
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U code_atlas -d code_atlas"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - code-atlas-postgres:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      CODE_ATLAS_DATABASE_URL: jdbc:postgresql://postgres:5432/code_atlas
+      CODE_ATLAS_DATABASE_USERNAME: code_atlas
+      CODE_ATLAS_DATABASE_PASSWORD: code_atlas
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
+volumes:
+  code-atlas-postgres:

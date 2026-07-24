@@ -1,0 +1,15 @@
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /workspace
+COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
+COPY gradle ./gradle
+COPY backend ./backend
+COPY demo-app/build.gradle.kts ./demo-app/build.gradle.kts
+RUN ./gradlew :backend:bootJar --no-daemon
+
+FROM eclipse-temurin:21-jre-alpine
+RUN addgroup -S codeatlas && adduser -S codeatlas -G codeatlas
+WORKDIR /app
+COPY --from=build /workspace/backend/build/libs/backend-*.jar app.jar
+USER codeatlas
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
