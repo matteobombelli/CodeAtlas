@@ -1,6 +1,7 @@
 package dev.codeatlas.analysis;
 
 import dev.codeatlas.indexing.DiscoveredSourceFile;
+import dev.codeatlas.git.GitFileStat;
 import java.util.List;
 import java.util.Map;
 
@@ -12,5 +13,6 @@ public record RepositoryAnalysis(
         List<AnalysisWarning> warnings,
         List<AnalyzedRelationship> relationships,
         List<UnresolvedRelationship> unresolved,
-        List<ExternalReference> externalReferences) {
+        List<ExternalReference> externalReferences,
+        List<GitFileStat> gitFileStats) {
 }

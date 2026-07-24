@@ -1,5 +1,7 @@
 package dev.codeatlas.indexing;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.codeatlas.analysis.RepositoryAnalysis;
 import dev.codeatlas.shared.ConflictException;
 import dev.codeatlas.shared.NotFoundException;
@@ -7,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -17,9 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class IndexStore {
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final ObjectMapper objectMapper;
 
-    public IndexStore(NamedParameterJdbcTemplate jdbc) {
+    public IndexStore(NamedParameterJdbcTemplate jdbc, ObjectMapper objectMapper) {
         this.jdbc = jdbc;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -64,10 +69,40 @@ public class IndexStore {
 
     @Transactional
     public void complete(UUID repositoryId, UUID runId, RepositoryAnalysis analysis) {
-        List<DiscoveredSourceFile> files = analysis.files();
         jdbc.update("DELETE FROM source_files WHERE repository_id = :repositoryId",
                 Map.of("repositoryId", repositoryId));
-        for (DiscoveredSourceFile file : files) {
+        persistSourceFiles(repositoryId, runId, analysis);
+        persistSymbols(repositoryId, runId, analysis);
+        finish(repositoryId, runId, analysis, analysis.files().size(), new ChangeSummary(
+                Set.of(), Set.of(), Set.of(), Set.of()));
+    }
+
+    @Transactional
+    public void completeIncremental(
+            UUID repositoryId,
+            UUID runId,
+            RepositoryAnalysis analysis,
+            ChangeSummary changes,
+            int totalDiscovered) {
+        Set<String> removedPaths = new java.util.HashSet<>(changes.affected());
+        removedPaths.addAll(changes.deleted());
+        if (!removedPaths.isEmpty()) {
+            jdbc.update("""
+                    DELETE FROM source_files
+                    WHERE repository_id = :repositoryId
+                      AND relative_path IN (:paths)
+                    """, Map.of("repositoryId", repositoryId, "paths", removedPaths));
+        }
+        persistSourceFiles(repositoryId, runId, analysis);
+        persistSymbols(repositoryId, runId, analysis);
+        finish(repositoryId, runId, analysis, totalDiscovered, changes);
+    }
+
+    private void persistSourceFiles(
+            UUID repositoryId,
+            UUID runId,
+            RepositoryAnalysis analysis) {
+        for (DiscoveredSourceFile file : analysis.files()) {
             jdbc.update("""
                     INSERT INTO source_files (
                         id, repository_id, relative_path, source_set, module_name,
@@ -88,20 +123,35 @@ public class IndexStore {
                     .addValue("packageName", analysis.packages().get(file.id()))
                     .addValue("runId", runId));
         }
-        persistSymbols(repositoryId, runId, analysis);
+    }
+
+    private void finish(
+            UUID repositoryId,
+            UUID runId,
+            RepositoryAnalysis analysis,
+            int totalDiscovered,
+            ChangeSummary changes) {
         Instant completed = Instant.now();
         jdbc.update("""
                 UPDATE index_runs SET status = 'COMPLETE', phase = 'COMPLETE',
-                    files_processed = files_discovered, completed_at = :completedAt,
+                    files_discovered = :filesDiscovered,
+                    files_processed = :filesProcessed, completed_at = :completedAt,
                     warnings_count = :warnings, symbols_created = :symbols,
-                    endpoints_created = :endpoints, edges_created = :edges
+                    endpoints_created = :endpoints, edges_created = :edges,
+                    files_added = :filesAdded, files_modified = :filesModified,
+                    files_deleted = :filesDeleted
                 WHERE id = :runId
                 """, new MapSqlParameterSource()
                 .addValue("runId", runId)
+                .addValue("filesDiscovered", totalDiscovered)
+                .addValue("filesProcessed", analysis.files().size())
                 .addValue("warnings", analysis.warnings().size())
                 .addValue("symbols", analysis.symbols().size())
                 .addValue("endpoints", analysis.endpoints().size())
                 .addValue("edges", analysis.relationships().size())
+                .addValue("filesAdded", changes.added().size())
+                .addValue("filesModified", changes.modified().size())
+                .addValue("filesDeleted", changes.deleted().size())
                 .addValue("completedAt", Timestamp.from(completed)));
         jdbc.update("""
                 UPDATE repositories
@@ -255,6 +305,44 @@ public class IndexStore {
                     .addValue("sourceColumn", reference.sourceColumn())
                     .addValue("runId", runId));
         }
+        for (var stat : analysis.gitFileStats()) {
+            jdbc.update("""
+                    INSERT INTO git_file_stats (
+                        source_file_id, total_commits, commits_last_90_days,
+                        last_modified_at, last_author_name, last_commit_sha,
+                        contributor_count, recent_subjects
+                    ) VALUES (
+                        :sourceFileId, :totalCommits, :commitsLast90Days,
+                        :lastModifiedAt, :lastAuthor, :lastCommitSha,
+                        :contributorCount, CAST(:recentSubjects AS jsonb)
+                    )
+                    ON CONFLICT (source_file_id) DO UPDATE SET
+                        total_commits = EXCLUDED.total_commits,
+                        commits_last_90_days = EXCLUDED.commits_last_90_days,
+                        last_modified_at = EXCLUDED.last_modified_at,
+                        last_author_name = EXCLUDED.last_author_name,
+                        last_commit_sha = EXCLUDED.last_commit_sha,
+                        contributor_count = EXCLUDED.contributor_count,
+                        recent_subjects = EXCLUDED.recent_subjects
+                    """, new MapSqlParameterSource()
+                    .addValue("sourceFileId", stat.sourceFileId())
+                    .addValue("totalCommits", stat.totalCommits())
+                    .addValue("commitsLast90Days", stat.commitsLast90Days())
+                    .addValue("lastModifiedAt", stat.lastModifiedAt() == null
+                            ? null : Timestamp.from(stat.lastModifiedAt()))
+                    .addValue("lastAuthor", stat.lastAuthorName())
+                    .addValue("lastCommitSha", stat.lastCommitSha())
+                    .addValue("contributorCount", stat.contributorCount())
+                    .addValue("recentSubjects", json(stat.recentSubjects())));
+        }
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Could not serialize Git metadata", exception);
+        }
     }
 
     @Transactional
@@ -325,6 +413,9 @@ public class IndexStore {
                 row.getInt("symbols_created"),
                 row.getInt("endpoints_created"),
                 row.getInt("edges_created"),
+                row.getInt("files_added"),
+                row.getInt("files_modified"),
+                row.getInt("files_deleted"),
                 row.getTimestamp("started_at").toInstant(),
                 completed == null ? null : completed.toInstant(),
                 row.getString("error_code"),

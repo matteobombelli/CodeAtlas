@@ -4,6 +4,8 @@ import dev.codeatlas.analysis.SymbolRelationshipView;
 import dev.codeatlas.analysis.SymbolStore;
 import dev.codeatlas.analysis.SymbolView;
 import dev.codeatlas.repository.RepositoryService;
+import dev.codeatlas.git.GitFileHistoryView;
+import dev.codeatlas.git.GitStatsStore;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,10 +20,15 @@ public class SymbolController {
 
     private final RepositoryService repositories;
     private final SymbolStore symbols;
+    private final GitStatsStore gitStats;
 
-    public SymbolController(RepositoryService repositories, SymbolStore symbols) {
+    public SymbolController(
+            RepositoryService repositories,
+            SymbolStore symbols,
+            GitStatsStore gitStats) {
         this.repositories = repositories;
         this.symbols = symbols;
+        this.gitStats = gitStats;
     }
 
     @GetMapping("/{symbolId}")
@@ -54,5 +61,13 @@ public class SymbolController {
     List<SymbolRelationshipView> tests(
             @PathVariable UUID repositoryId, @PathVariable UUID symbolId) {
         return symbols.callers(repositoryId, symbolId, true);
+    }
+
+    @GetMapping("/{symbolId}/history")
+    GitFileHistoryView history(
+            @PathVariable UUID repositoryId, @PathVariable UUID symbolId) {
+        repositories.get(repositoryId);
+        symbols.get(repositoryId, symbolId);
+        return gitStats.forSymbol(repositoryId, symbolId);
     }
 }

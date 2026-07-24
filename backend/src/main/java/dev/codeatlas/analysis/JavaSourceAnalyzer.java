@@ -88,7 +88,7 @@ public class JavaSourceAnalyzer {
         }
         return new RepositoryAnalysis(
                 files, packages, symbols, endpoints, warnings,
-                List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
     }
 
     private void analyzeType(

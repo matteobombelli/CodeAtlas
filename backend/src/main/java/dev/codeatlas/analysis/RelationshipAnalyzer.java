@@ -37,12 +37,20 @@ public class RelationshipAnalyzer {
             new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21));
 
     public RelationshipAnalysis analyze(Path root, RepositoryAnalysis analysis) {
+        return analyze(root, analysis, analysis.files(), List.of());
+    }
+
+    public RelationshipAnalysis analyze(
+            Path root,
+            RepositoryAnalysis analysis,
+            List<DiscoveredSourceFile> filesToAnalyze,
+            List<AnalyzedRelationship> seedRelationships) {
         Index index = new Index(analysis.symbols());
-        List<AnalyzedRelationship> relationships = new ArrayList<>();
+        List<AnalyzedRelationship> relationships = new ArrayList<>(seedRelationships);
         List<UnresolvedRelationship> unresolved = new ArrayList<>();
         List<ExternalReference> external = new ArrayList<>();
 
-        for (DiscoveredSourceFile file : analysis.files()) {
+        for (DiscoveredSourceFile file : filesToAnalyze) {
             try {
                 Optional<CompilationUnit> unit = parser.parse(root.resolve(file.relativePath())).getResult();
                 unit.ifPresent(compilation -> {

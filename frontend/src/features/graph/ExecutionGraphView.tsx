@@ -152,6 +152,11 @@ export function ExecutionGraphView({
     enabled: selected !== undefined,
     retry: false,
   })
+  const history = useQuery({
+    queryKey: ['symbol-history', repositoryId, selected?.id],
+    queryFn: () => repositoryApi.history(repositoryId, selected!.id),
+    enabled: selected?.resourceType === 'SYMBOL',
+  })
 
   return (
     <section className={styles.atlas} aria-label={`Execution graph for ${endpoint.path}`}>
@@ -266,6 +271,22 @@ export function ExecutionGraphView({
                     </pre>
                   )}
                 </Highlight>
+              )}
+              <h5>Git</h5>
+              {history.data && (
+                <dl>
+                  <dt>Last author</dt>
+                  <dd>{history.data.lastAuthorName ?? 'No committed history'}</dd>
+                  <dt>Commits</dt>
+                  <dd>
+                    {history.data.totalCommits} total · {history.data.commitsLast90Days}{' '}
+                    in 90 days
+                  </dd>
+                  <dt>Contributors</dt>
+                  <dd>{history.data.contributorCount}</dd>
+                  <dt>Last commit</dt>
+                  <dd>{history.data.lastCommitSha?.slice(0, 10) ?? '—'}</dd>
+                </dl>
               )}
             </>
           ) : (

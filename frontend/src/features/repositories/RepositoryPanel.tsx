@@ -19,7 +19,7 @@ function RunProgress({
   onFinished,
 }: {
   initialRun: IndexRun
-  onFinished: () => void
+  onFinished: (run: IndexRun) => void
 }) {
   const run = useQuery({
     queryKey: ['index-run', initialRun.id],
@@ -34,9 +34,9 @@ function RunProgress({
   const terminal = run.data.status === 'COMPLETE' || run.data.status === 'FAILED'
   useEffect(() => {
     if (terminal) {
-      onFinished()
+      onFinished(run.data)
     }
-  }, [terminal, onFinished])
+  }, [terminal, onFinished, run.data])
 
   return (
     <div className={styles.progress} role="status">
@@ -59,6 +59,7 @@ function RepositoryCard({
   onOpenEndpoint: (endpoint: HttpEndpoint) => void
 }) {
   const [run, setRun] = useState<IndexRun | null>(null)
+  const [lastRun, setLastRun] = useState<IndexRun | null>(null)
   const [endpointsOpen, setEndpointsOpen] = useState(false)
   const endpoints = useQuery({
     queryKey: ['endpoints', repository.id],
@@ -101,18 +102,30 @@ function RepositoryCard({
       {run && (
         <RunProgress
           initialRun={run}
-          onFinished={() => {
+          onFinished={(finished) => {
+            setLastRun(finished)
             setRun(null)
             onChanged()
           }}
         />
+      )}
+      {lastRun?.status === 'COMPLETE' && (
+        <p className={styles.summary}>
+          Processed {lastRun.filesProcessed} of {lastRun.filesDiscovered} files ·{' '}
+          {lastRun.filesAdded} added · {lastRun.filesModified} modified ·{' '}
+          {lastRun.filesDeleted} deleted
+        </p>
       )}
       {(index.error || remove.error) && (
         <p className={styles.error}>{(index.error ?? remove.error)?.message}</p>
       )}
       <div className={styles.actions}>
         <button disabled={index.isPending || !!run} onClick={() => index.mutate()}>
-          {index.isPending ? 'Queueing…' : 'Index repository'}
+          {index.isPending
+            ? 'Queueing…'
+            : repository.activeIndexRunId
+              ? 'Rescan repository'
+              : 'Index repository'}
         </button>
         {repository.status === 'READY' && (
           <button

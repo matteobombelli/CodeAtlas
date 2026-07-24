@@ -27,6 +27,11 @@ export type IndexRun = {
   symbolsCreated: number
   endpointsCreated: number
   edgesCreated: number
+  filesAdded: number
+  filesModified: number
+  filesDeleted: number
+  startedAt: string
+  completedAt: string | null
   errorSummary: string | null
 }
 
@@ -84,6 +89,16 @@ export type SourceExcerpt = {
   contentHash: string
 }
 
+export type GitFileHistory = {
+  totalCommits: number
+  commitsLast90Days: number
+  lastModifiedAt: string | null
+  lastAuthorName: string | null
+  lastCommitSha: string | null
+  contributorCount: number
+  recentSubjects: string[]
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -106,7 +121,9 @@ export const repositoryApi = {
   remove: (id: string) =>
     request<void>(`/api/repositories/${id}`, { method: 'DELETE' }),
   index: (id: string) =>
-    request<IndexRun>(`/api/repositories/${id}/index`, { method: 'POST' }),
+    request<IndexRun>(`/api/repositories/${id}/index?mode=INCREMENTAL`, {
+      method: 'POST',
+    }),
   run: (id: string) => request<IndexRun>(`/api/index-runs/${id}`),
   endpoints: (id: string) =>
     request<HttpEndpoint[]>(`/api/repositories/${id}/http-endpoints`),
@@ -133,4 +150,8 @@ export const repositoryApi = {
       `/api/repositories/${repositoryId}/source?${query.toString()}`,
     )
   },
+  history: (repositoryId: string, symbolId: string) =>
+    request<GitFileHistory>(
+      `/api/repositories/${repositoryId}/symbols/${symbolId}/history`,
+    ),
 }

@@ -224,6 +224,12 @@
   color: #f0a487;
 }
 
+.summary {
+  margin: 0 0 14px !important;
+  color: #7fae9f;
+  font-size: 0.74rem;
+}
+
 .empty {
   padding: 28px;
   border: 1px dashed #32465d;

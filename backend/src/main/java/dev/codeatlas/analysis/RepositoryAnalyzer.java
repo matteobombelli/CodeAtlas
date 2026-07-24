@@ -29,7 +29,8 @@ public class RepositoryAnalyzer {
                 symbols.warnings(),
                 relationships.relationships(),
                 relationships.unresolved(),
-                relationships.externalReferences());
+                relationships.externalReferences(),
+                List.of());
     }
 
     public record RelationshipAnalysis(
