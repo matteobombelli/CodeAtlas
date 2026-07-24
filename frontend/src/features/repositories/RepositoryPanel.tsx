@@ -179,6 +179,12 @@ export function RepositoryPanel() {
   const repositories = useQuery({
     queryKey: ['repositories'],
     queryFn: repositoryApi.list,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      return !data?.length || data.some((repository) => repository.status === 'INDEXING')
+        ? 2_000
+        : false
+    },
   })
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['repositories'] })

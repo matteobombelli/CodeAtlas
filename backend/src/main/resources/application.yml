@@ -28,3 +28,7 @@ code-atlas:
   indexing:
     max-concurrent-jobs: 1
     queue-capacity: 10
+  demo:
+    enabled: ${CODE_ATLAS_DEMO_ENABLED:false}
+    display-name: ${CODE_ATLAS_DEMO_DISPLAY_NAME:Code Atlas}
+    relative-path: ${CODE_ATLAS_DEMO_RELATIVE_PATH:code-atlas}
