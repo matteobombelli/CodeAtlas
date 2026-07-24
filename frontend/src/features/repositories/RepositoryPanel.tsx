@@ -46,6 +46,12 @@ function RepositoryCard({
   onChanged: () => void
 }) {
   const [run, setRun] = useState<IndexRun | null>(null)
+  const [endpointsOpen, setEndpointsOpen] = useState(false)
+  const endpoints = useQuery({
+    queryKey: ['endpoints', repository.id],
+    queryFn: () => repositoryApi.endpoints(repository.id),
+    enabled: endpointsOpen,
+  })
   const index = useMutation({
     mutationFn: () => repositoryApi.index(repository.id),
     onSuccess: setRun,
@@ -79,7 +85,15 @@ function RepositoryCard({
           </dd>
         </div>
       </dl>
-      {run && <RunProgress initialRun={run} onFinished={onChanged} />}
+      {run && (
+        <RunProgress
+          initialRun={run}
+          onFinished={() => {
+            setRun(null)
+            onChanged()
+          }}
+        />
+      )}
       {(index.error || remove.error) && (
         <p className={styles.error}>{(index.error ?? remove.error)?.message}</p>
       )}
@@ -87,6 +101,14 @@ function RepositoryCard({
         <button disabled={index.isPending || !!run} onClick={() => index.mutate()}>
           {index.isPending ? 'Queueing…' : 'Index repository'}
         </button>
+        {repository.status === 'READY' && (
+          <button
+            className={styles.secondary}
+            onClick={() => setEndpointsOpen((open) => !open)}
+          >
+            {endpointsOpen ? 'Hide endpoints' : 'Browse endpoints'}
+          </button>
+        )}
         <button
           className={styles.secondary}
           disabled={remove.isPending}
@@ -95,6 +117,23 @@ function RepositoryCard({
           Remove
         </button>
       </div>
+      {endpointsOpen && (
+        <div className={styles.endpoints}>
+          {endpoints.isLoading && <p>Loading endpoints…</p>}
+          {endpoints.data?.map((endpoint) => (
+            <button key={endpoint.id} type="button">
+              <span className={styles.method}>{endpoint.httpMethod}</span>
+              <strong>{endpoint.path}</strong>
+              <small>
+                {endpoint.controller}.{endpoint.method}
+              </small>
+            </button>
+          ))}
+          {endpoints.data?.length === 0 && (
+            <p>No Spring HTTP endpoints were detected.</p>
+          )}
+        </div>
+      )}
     </article>
   )
 }

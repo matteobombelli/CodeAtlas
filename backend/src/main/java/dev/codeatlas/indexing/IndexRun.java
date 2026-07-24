@@ -12,6 +12,8 @@ public record IndexRun(
         int filesDiscovered,
         int filesProcessed,
         int warningsCount,
+        int symbolsCreated,
+        int endpointsCreated,
         Instant startedAt,
         Instant completedAt,
         String errorCode,

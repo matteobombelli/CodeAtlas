@@ -24,7 +24,24 @@ export type IndexRun = {
   filesDiscovered: number
   filesProcessed: number
   warningsCount: number
+  symbolsCreated: number
+  endpointsCreated: number
   errorSummary: string | null
+}
+
+export type HttpEndpoint = {
+  id: string
+  httpMethod: string
+  path: string
+  controllerMethodId: string
+  controller: string
+  method: string
+  signature: string
+  sourcePath: string
+  startLine: number
+  endLine: number
+  requestType: string | null
+  responseType: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,4 +68,6 @@ export const repositoryApi = {
   index: (id: string) =>
     request<IndexRun>(`/api/repositories/${id}/index`, { method: 'POST' }),
   run: (id: string) => request<IndexRun>(`/api/index-runs/${id}`),
+  endpoints: (id: string) =>
+    request<HttpEndpoint[]>(`/api/repositories/${id}/http-endpoints`),
 }

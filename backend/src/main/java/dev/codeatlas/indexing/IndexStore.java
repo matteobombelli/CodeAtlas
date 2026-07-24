@@ -1,5 +1,6 @@
 package dev.codeatlas.indexing;
 
+import dev.codeatlas.analysis.RepositoryAnalysis;
 import dev.codeatlas.shared.ConflictException;
 import dev.codeatlas.shared.NotFoundException;
 import java.sql.Timestamp;
@@ -62,17 +63,18 @@ public class IndexStore {
     }
 
     @Transactional
-    public void complete(UUID repositoryId, UUID runId, List<DiscoveredSourceFile> files) {
+    public void complete(UUID repositoryId, UUID runId, RepositoryAnalysis analysis) {
+        List<DiscoveredSourceFile> files = analysis.files();
         jdbc.update("DELETE FROM source_files WHERE repository_id = :repositoryId",
                 Map.of("repositoryId", repositoryId));
         for (DiscoveredSourceFile file : files) {
             jdbc.update("""
                     INSERT INTO source_files (
                         id, repository_id, relative_path, source_set, module_name,
-                        content_hash, line_count, file_size, observed_in_run_id
+                        content_hash, line_count, file_size, package_name, observed_in_run_id
                     ) VALUES (
                         :id, :repositoryId, :relativePath, :sourceSet, :moduleName,
-                        :contentHash, :lineCount, :fileSize, :runId
+                        :contentHash, :lineCount, :fileSize, :packageName, :runId
                     )
                     """, new MapSqlParameterSource()
                     .addValue("id", file.id())
@@ -83,15 +85,22 @@ public class IndexStore {
                     .addValue("contentHash", file.contentHash())
                     .addValue("lineCount", file.lineCount())
                     .addValue("fileSize", file.fileSize())
+                    .addValue("packageName", analysis.packages().get(file.id()))
                     .addValue("runId", runId));
         }
+        persistSymbols(repositoryId, runId, analysis);
         Instant completed = Instant.now();
         jdbc.update("""
                 UPDATE index_runs SET status = 'COMPLETE', phase = 'COMPLETE',
-                    files_processed = files_discovered, completed_at = :completedAt
+                    files_processed = files_discovered, completed_at = :completedAt,
+                    warnings_count = :warnings, symbols_created = :symbols,
+                    endpoints_created = :endpoints
                 WHERE id = :runId
                 """, new MapSqlParameterSource()
                 .addValue("runId", runId)
+                .addValue("warnings", analysis.warnings().size())
+                .addValue("symbols", analysis.symbols().size())
+                .addValue("endpoints", analysis.endpoints().size())
                 .addValue("completedAt", Timestamp.from(completed)));
         jdbc.update("""
                 UPDATE repositories
@@ -101,6 +110,80 @@ public class IndexStore {
                 .addValue("repositoryId", repositoryId)
                 .addValue("runId", runId)
                 .addValue("completedAt", Timestamp.from(completed)));
+    }
+
+    private void persistSymbols(UUID repositoryId, UUID runId, RepositoryAnalysis analysis) {
+        for (var symbol : analysis.symbols()) {
+            jdbc.update("""
+                    INSERT INTO code_symbols (
+                        id, repository_id, source_file_id, parent_symbol_id, symbol_key,
+                        kind, simple_name, qualified_name, signature, visibility,
+                        start_line, end_line, start_column, end_column,
+                        is_abstract, is_static, observed_in_run_id
+                    ) VALUES (
+                        :id, :repositoryId, :sourceFileId, :parentSymbolId, :symbolKey,
+                        :kind, :simpleName, :qualifiedName, :signature, :visibility,
+                        :startLine, :endLine, :startColumn, :endColumn,
+                        :abstractSymbol, :staticSymbol, :runId
+                    )
+                    """, new MapSqlParameterSource()
+                    .addValue("id", symbol.id())
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("sourceFileId", symbol.sourceFileId())
+                    .addValue("parentSymbolId", symbol.parentSymbolId())
+                    .addValue("symbolKey", symbol.symbolKey())
+                    .addValue("kind", symbol.kind().name())
+                    .addValue("simpleName", symbol.simpleName())
+                    .addValue("qualifiedName", symbol.qualifiedName())
+                    .addValue("signature", symbol.signature())
+                    .addValue("visibility", symbol.visibility())
+                    .addValue("startLine", symbol.startLine())
+                    .addValue("endLine", symbol.endLine())
+                    .addValue("startColumn", symbol.startColumn())
+                    .addValue("endColumn", symbol.endColumn())
+                    .addValue("abstractSymbol", symbol.abstractSymbol())
+                    .addValue("staticSymbol", symbol.staticSymbol())
+                    .addValue("runId", runId));
+            for (var role : symbol.roles()) {
+                jdbc.update("""
+                        INSERT INTO code_symbol_roles (symbol_id, role)
+                        VALUES (:symbolId, :role)
+                        """, Map.of("symbolId", symbol.id(), "role", role.name()));
+            }
+        }
+        for (var endpoint : analysis.endpoints()) {
+            jdbc.update("""
+                    INSERT INTO http_endpoints (
+                        id, repository_id, controller_method_id, http_method, path,
+                        request_type, response_type, observed_in_run_id
+                    ) VALUES (
+                        :id, :repositoryId, :methodId, :httpMethod, :path,
+                        :requestType, :responseType, :runId
+                    )
+                    """, new MapSqlParameterSource()
+                    .addValue("id", endpoint.id())
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("methodId", endpoint.controllerMethodId())
+                    .addValue("httpMethod", endpoint.httpMethod())
+                    .addValue("path", endpoint.path())
+                    .addValue("requestType", endpoint.requestType())
+                    .addValue("responseType", endpoint.responseType())
+                    .addValue("runId", runId));
+        }
+        for (var warning : analysis.warnings()) {
+            String message = warning.message() == null ? "Unknown analysis warning" : warning.message();
+            jdbc.update("""
+                    INSERT INTO index_warnings (
+                        id, index_run_id, source_file_id, category, message, source_line
+                    ) VALUES (:id, :runId, :sourceFileId, :category, :message, :sourceLine)
+                    """, new MapSqlParameterSource()
+                    .addValue("id", warning.id())
+                    .addValue("runId", runId)
+                    .addValue("sourceFileId", warning.sourceFileId())
+                    .addValue("category", warning.category())
+                    .addValue("message", message.substring(0, Math.min(1900, message.length())))
+                    .addValue("sourceLine", warning.sourceLine()));
+        }
     }
 
     @Transactional
@@ -168,6 +251,8 @@ public class IndexStore {
                 row.getInt("files_discovered"),
                 row.getInt("files_processed"),
                 row.getInt("warnings_count"),
+                row.getInt("symbols_created"),
+                row.getInt("endpoints_created"),
                 row.getTimestamp("started_at").toInstant(),
                 completed == null ? null : completed.toInstant(),
                 row.getString("error_code"),
