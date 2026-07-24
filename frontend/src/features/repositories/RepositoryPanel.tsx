@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, lazy, Suspense, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   repositoryApi,
@@ -6,8 +6,13 @@ import {
   type IndexRun,
   type Repository,
 } from '../../api/repositories'
-import { ExecutionGraphView } from '../graph/ExecutionGraphView'
 import styles from './RepositoryPanel.module.css'
+
+const ExecutionGraphView = lazy(() =>
+  import('../graph/ExecutionGraphView').then((module) => ({
+    default: module.ExecutionGraphView,
+  })),
+)
 
 function RunProgress({
   initialRun,
@@ -233,10 +238,12 @@ export function RepositoryPanel() {
         )}
       </div>
       {selected && (
-        <ExecutionGraphView
-          repositoryId={selected.repositoryId}
-          endpoint={selected.endpoint}
-        />
+        <Suspense fallback={<p className={styles.empty}>Loading the atlas…</p>}>
+          <ExecutionGraphView
+            repositoryId={selected.repositoryId}
+            endpoint={selected.endpoint}
+          />
+        </Suspense>
       )}
     </section>
   )

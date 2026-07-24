@@ -106,6 +106,11 @@ public class JavaSourceAnalyzer {
         String qualifiedName = packageName.isEmpty() ? typeName : packageName + "." + typeName;
         UUID typeId = UUID.randomUUID();
         Set<SymbolRole> roles = roles(type);
+        if (type.getNameAsString().endsWith("Test")
+                || type.getNameAsString().endsWith("Tests")) {
+            roles = EnumSet.copyOf(roles);
+            roles.add(SymbolRole.TEST);
+        }
         if (type instanceof ClassOrInterfaceDeclaration declaration
                 && declaration.getExtendedTypes().stream().anyMatch(parent ->
                         Set.of("JpaRepository", "CrudRepository", "PagingAndSortingRepository")

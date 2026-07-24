@@ -47,6 +47,29 @@
   font-size: 0.78rem;
 }
 
+.graphControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.graphControls button,
+.blastButton {
+  padding: 8px 10px;
+  border: 1px solid #3b5566;
+  border-radius: 8px;
+  background: transparent;
+  color: #a8b9b9;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.blastButton {
+  width: 100%;
+  border-color: #6a6489;
+  color: #c3b9e5;
+}
+
 .atlas select {
   padding: 7px;
   border: 1px solid #33475e;
@@ -206,6 +229,30 @@
   color: #718289;
   font-size: 0.8rem;
   line-height: 1.6;
+}
+
+.source {
+  overflow: auto;
+  max-height: 320px;
+  margin: 0;
+  padding: 11px;
+  border-radius: 9px;
+  font-size: 0.65rem;
+  line-height: 1.55;
+}
+
+.lineNumber {
+  display: inline-block;
+  width: 30px;
+  margin-right: 9px;
+  color: #52616b;
+  text-align: right;
+  user-select: none;
+}
+
+.sourceError {
+  color: #e29a91;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 900px) {

@@ -148,6 +148,121 @@ public class GraphStore {
                 reason);
     }
 
+    public ExecutionGraph blastRadius(
+            UUID repositoryId,
+            UUID symbolId,
+            int maxDepth,
+            boolean includeUncertain) {
+        if (maxDepth < 1 || maxDepth > 8) {
+            throw new InvalidRequestException("maxDepth must be between 1 and 8");
+        }
+        LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
+        List<GraphEdge> edges = new ArrayList<>();
+        List<GraphWarning> warnings = new ArrayList<>();
+        GraphNode root = symbolNode(symbolId);
+        nodes.put(root.id(), root);
+        for (EndpointRoot endpoint : endpointsFor(repositoryId, symbolId)) {
+            String endpointNodeId = "endpoint:" + endpoint.endpointId();
+            nodes.put(endpointNodeId, new GraphNode(
+                    endpointNodeId,
+                    "ENDPOINT",
+                    "ENDPOINT",
+                    endpoint.httpMethod() + " " + endpoint.path(),
+                    endpoint.controller() + "." + endpoint.method(),
+                    new SourceLocation(
+                            endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
+                    List.of("ENDPOINT")));
+            edges.add(new GraphEdge(
+                    "affected:" + endpoint.endpointId(),
+                    endpointNodeId,
+                    root.id(),
+                    "REACHES",
+                    1.0,
+                    "EXACT",
+                    "REVERSE_CALL_PATH",
+                    new Evidence(
+                            endpoint.sourcePath(), endpoint.startLine(), 1,
+                            "Endpoint is implemented by the selected symbol")));
+        }
+        ArrayDeque<Visit> queue = new ArrayDeque<>();
+        queue.add(new Visit(symbolId, 0));
+        boolean truncated = false;
+        String reason = null;
+
+        for (StoredEdge edge : outgoing(repositoryId, symbolId)) {
+            if (Set.of("READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY").contains(edge.kind())) {
+                GraphNode target = symbolNode(edge.targetId());
+                nodes.putIfAbsent(target.id(), target);
+                edges.add(edge.toGraphEdge());
+            }
+        }
+
+        while (!queue.isEmpty()) {
+            Visit visit = queue.removeFirst();
+            if (visit.depth() >= maxDepth) {
+                continue;
+            }
+            for (StoredEdge edge : incoming(repositoryId, visit.symbolId())) {
+                if (!Set.of("CALLS", "TESTS", "IMPLEMENTS", "REFERENCES").contains(edge.kind())
+                        || (!includeUncertain && edge.confidence() < 0.70)) {
+                    continue;
+                }
+                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                    truncated = true;
+                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    queue.clear();
+                    break;
+                }
+                GraphNode source = symbolNode(edge.sourceId());
+                boolean unseen = nodes.putIfAbsent(source.id(), source) == null;
+                edges.add(edge.toGraphEdge());
+                for (EndpointRoot endpoint : endpointsFor(repositoryId, edge.sourceId())) {
+                    String endpointNodeId = "endpoint:" + endpoint.endpointId();
+                    nodes.putIfAbsent(endpointNodeId, new GraphNode(
+                            endpointNodeId,
+                            "ENDPOINT",
+                            "ENDPOINT",
+                            endpoint.httpMethod() + " " + endpoint.path(),
+                            endpoint.controller() + "." + endpoint.method(),
+                            new SourceLocation(
+                                    endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
+                            List.of("ENDPOINT")));
+                    edges.add(new GraphEdge(
+                            "affected:" + endpoint.endpointId(),
+                            endpointNodeId,
+                            source.id(),
+                            "REACHES",
+                            1.0,
+                            "EXACT",
+                            "REVERSE_CALL_PATH",
+                            new Evidence(
+                                    endpoint.sourcePath(), endpoint.startLine(), 1,
+                                    "Endpoint reaches the selected symbol")));
+                }
+                if (unseen && !source.roles().contains("TEST")) {
+                    queue.addLast(new Visit(edge.sourceId(), visit.depth() + 1));
+                }
+            }
+        }
+
+        warnings.add(new GraphWarning(
+                "POTENTIAL_IMPACT",
+                "Static relationships indicate potential impact, not runtime certainty."));
+        if (truncated) {
+            warnings.add(new GraphWarning(
+                    "TRUNCATED",
+                    "Blast radius stopped at the configured "
+                            + reason.toLowerCase().replace('_', ' ') + "."));
+        }
+        return new ExecutionGraph(
+                symbolId.toString(),
+                List.copyOf(nodes.values()),
+                edges,
+                warnings,
+                truncated,
+                reason);
+    }
+
     private EndpointRoot endpointRoot(UUID repositoryId, UUID endpointId) {
         List<EndpointRoot> values = jdbc.query("""
                 SELECT e.id, e.http_method, e.path, e.controller_method_id,
@@ -173,6 +288,30 @@ public class GraphStore {
             throw new NotFoundException("Endpoint " + endpointId + " does not exist");
         }
         return values.getFirst();
+    }
+
+    private List<EndpointRoot> endpointsFor(UUID repositoryId, UUID methodId) {
+        return jdbc.query("""
+                SELECT e.id, e.http_method, e.path, e.controller_method_id,
+                       parent.simple_name AS controller, method.simple_name AS method,
+                       sf.relative_path, method.start_line, method.end_line
+                FROM http_endpoints e
+                JOIN code_symbols method ON method.id = e.controller_method_id
+                JOIN code_symbols parent ON parent.id = method.parent_symbol_id
+                JOIN source_files sf ON sf.id = method.source_file_id
+                WHERE e.repository_id = :repositoryId
+                  AND e.controller_method_id = :methodId
+                """, Map.of("repositoryId", repositoryId, "methodId", methodId),
+                (row, number) -> new EndpointRoot(
+                        row.getObject("id", UUID.class),
+                        row.getString("http_method"),
+                        row.getString("path"),
+                        row.getObject("controller_method_id", UUID.class),
+                        row.getString("controller"),
+                        row.getString("method"),
+                        row.getString("relative_path"),
+                        row.getInt("start_line"),
+                        row.getInt("end_line")));
     }
 
     private GraphNode symbolNode(UUID symbolId) {
@@ -217,6 +356,27 @@ public class GraphStore {
                 WHERE r.repository_id = :repositoryId AND r.source_symbol_id = :sourceId
                 ORDER BY r.confidence DESC, r.kind, r.source_line
                 """, Map.of("repositoryId", repositoryId, "sourceId", sourceId),
+                (row, number) -> new StoredEdge(
+                        row.getObject("id", UUID.class),
+                        row.getObject("source_symbol_id", UUID.class),
+                        row.getObject("target_symbol_id", UUID.class),
+                        row.getString("kind"),
+                        row.getDouble("confidence"),
+                        row.getString("resolution_method"),
+                        row.getString("relative_path"),
+                        row.getInt("source_line"),
+                        row.getInt("source_column"),
+                        row.getString("evidence_text")));
+    }
+
+    private List<StoredEdge> incoming(UUID repositoryId, UUID targetId) {
+        return jdbc.query("""
+                SELECT r.*, sf.relative_path
+                FROM code_relationships r
+                JOIN source_files sf ON sf.id = r.source_file_id
+                WHERE r.repository_id = :repositoryId AND r.target_symbol_id = :targetId
+                ORDER BY r.confidence DESC, r.kind, r.source_line
+                """, Map.of("repositoryId", repositoryId, "targetId", targetId),
                 (row, number) -> new StoredEdge(
                         row.getObject("id", UUID.class),
                         row.getObject("source_symbol_id", UUID.class),

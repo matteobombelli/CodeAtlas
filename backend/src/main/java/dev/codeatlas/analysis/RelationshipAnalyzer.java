@@ -101,6 +101,7 @@ public class RelationshipAnalyzer {
             }
             inferManagedEntity(classType, type, file, index, relationships);
         }
+        inferTestConvention(type, declaration, file, index, relationships);
 
         declaration.getConstructors().forEach(constructor ->
                 constructor.getParameters().forEach(parameter ->
@@ -199,7 +200,9 @@ public class RelationshipAnalyzer {
         if (candidates.size() == 1) {
             AnalyzedSymbol target = candidates.getFirst();
             relationships.add(edge(
-                    source, target, RelationshipKind.CALLS,
+                    source, target,
+                    source.roles().contains(SymbolRole.TEST)
+                            ? RelationshipKind.TESTS : RelationshipKind.CALLS,
                     scopedType.isPresent() ? 1.0 : 0.70,
                     scopedType.isPresent()
                             ? ResolutionMethod.EXACT_PROJECT_TYPE
@@ -245,6 +248,26 @@ public class RelationshipAnalyzer {
                     RelationshipKind.CALLS, call.getBegin().orElseThrow().line,
                     "NO_PROJECT_TARGET", 0));
         }
+    }
+
+    private void inferTestConvention(
+            AnalyzedSymbol type,
+            TypeDeclaration<?> declaration,
+            DiscoveredSourceFile file,
+            Index index,
+            List<AnalyzedRelationship> relationships) {
+        if (!type.roles().contains(SymbolRole.TEST)) {
+            return;
+        }
+        String productionName = type.simpleName()
+                .replaceFirst("Tests?$", "");
+        index.uniqueType(productionName)
+                .filter(target -> !target.id().equals(type.id()))
+                .ifPresent(target -> relationships.add(edge(
+                        type, target, RelationshipKind.TESTS, 0.60,
+                        ResolutionMethod.TEST_NAMING_CONVENTION,
+                        file, declaration,
+                        "test class naming convention")));
     }
 
     private RelationshipKind dataKind(String methodName) {

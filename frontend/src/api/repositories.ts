@@ -75,6 +75,15 @@ export type ExecutionGraph = {
   truncationReason: string | null
 }
 
+export type SourceExcerpt = {
+  path: string
+  startLine: number
+  endLine: number
+  language: string
+  content: string
+  contentHash: string
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -105,4 +114,23 @@ export const repositoryApi = {
     request<ExecutionGraph>(
       `/api/repositories/${repositoryId}/graphs/endpoint/${endpointId}?maxDepth=${maxDepth}`,
     ),
+  blastRadius: (repositoryId: string, symbolId: string, maxDepth = 4) =>
+    request<ExecutionGraph>(
+      `/api/repositories/${repositoryId}/graphs/blast-radius/${symbolId}?maxDepth=${maxDepth}`,
+    ),
+  source: (
+    repositoryId: string,
+    path: string,
+    startLine: number,
+    endLine: number,
+  ) => {
+    const query = new URLSearchParams({
+      path,
+      startLine: String(startLine),
+      endLine: String(endLine),
+    })
+    return request<SourceExcerpt>(
+      `/api/repositories/${repositoryId}/source?${query.toString()}`,
+    )
+  },
 }

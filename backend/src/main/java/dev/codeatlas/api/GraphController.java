@@ -33,4 +33,14 @@ public class GraphController {
         return graphStore.endpointGraph(
                 repositoryId, endpointId, maxDepth, includeUncertain, includeExternal);
     }
+
+    @GetMapping("/blast-radius/{symbolId}")
+    ExecutionGraph blastRadius(
+            @PathVariable UUID repositoryId,
+            @PathVariable UUID symbolId,
+            @RequestParam(defaultValue = "4") int maxDepth,
+            @RequestParam(defaultValue = "true") boolean includeUncertain) {
+        repositoryService.get(repositoryId);
+        return graphStore.blastRadius(repositoryId, symbolId, maxDepth, includeUncertain);
+    }
 }

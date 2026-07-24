@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Highlight, themes } from 'prism-react-renderer'
 import {
   Background,
   Controls,
@@ -101,10 +102,17 @@ export function ExecutionGraphView({
   const [depth, setDepth] = useState(4)
   const [nodes, setNodes] = useState<Node[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const graph = useQuery({
+  const [blastRootId, setBlastRootId] = useState<string | null>(null)
+  const endpointGraph = useQuery({
     queryKey: ['endpoint-graph', repositoryId, endpoint.id, depth],
     queryFn: () => repositoryApi.endpointGraph(repositoryId, endpoint.id, depth),
   })
+  const blastGraph = useQuery({
+    queryKey: ['blast-radius', repositoryId, blastRootId, depth],
+    queryFn: () => repositoryApi.blastRadius(repositoryId, blastRootId!, depth),
+    enabled: blastRootId !== null,
+  })
+  const graph = blastRootId ? blastGraph : endpointGraph
 
   useEffect(() => {
     let active = true
@@ -123,25 +131,51 @@ export function ExecutionGraphView({
   const selectedEdges = graph.data?.edges.filter(
     (edge) => edge.source === selectedId || edge.target === selectedId,
   )
+  const sourceEnd = selected
+    ? Math.min(selected.source.endLine, selected.source.startLine + 80)
+    : 1
+  const source = useQuery({
+    queryKey: [
+      'source',
+      repositoryId,
+      selected?.source.path,
+      selected?.source.startLine,
+      sourceEnd,
+    ],
+    queryFn: () =>
+      repositoryApi.source(
+        repositoryId,
+        selected!.source.path,
+        selected!.source.startLine,
+        sourceEnd,
+      ),
+    enabled: selected !== undefined,
+    retry: false,
+  })
 
   return (
     <section className={styles.atlas} aria-label={`Execution graph for ${endpoint.path}`}>
       <header>
         <div>
-          <p>{endpoint.httpMethod}</p>
-          <h3>{endpoint.path}</h3>
+          <p>{blastRootId ? 'POTENTIAL BLAST RADIUS' : endpoint.httpMethod}</p>
+          <h3>{blastRootId ? selected?.label ?? 'Selected symbol' : endpoint.path}</h3>
           <span>
             {endpoint.controller}.{endpoint.method}
           </span>
         </div>
-        <label>
-          Depth
-          <select value={depth} onChange={(event) => setDepth(Number(event.target.value))}>
-            {[2, 3, 4, 5, 6, 7, 8].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.graphControls}>
+          {blastRootId && (
+            <button onClick={() => setBlastRootId(null)}>Back to endpoint</button>
+          )}
+          <label>
+            Depth
+            <select value={depth} onChange={(event) => setDepth(Number(event.target.value))}>
+              {[2, 3, 4, 5, 6, 7, 8].map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </header>
 
       {graph.isError && <p className={styles.error}>{graph.error.message}</p>}
@@ -185,6 +219,17 @@ export function ExecutionGraphView({
                 <dt>Relationships</dt>
                 <dd>{selectedEdges?.length ?? 0}</dd>
               </dl>
+              {selected.resourceType === 'SYMBOL' && (
+                <button
+                  className={styles.blastButton}
+                  onClick={() => {
+                    setBlastRootId(selected.id)
+                    setSelectedId(selected.id)
+                  }}
+                >
+                  Show potential blast radius
+                </button>
+              )}
               <h5>Evidence</h5>
               {selectedEdges?.map((edge) => (
                 <div className={styles.evidence} key={edge.id}>
@@ -198,6 +243,30 @@ export function ExecutionGraphView({
                   </small>
                 </div>
               ))}
+              <h5>Source</h5>
+              {source.isError && <p className={styles.sourceError}>{source.error.message}</p>}
+              {source.data && (
+                <Highlight
+                  theme={themes.nightOwl}
+                  code={source.data.content}
+                  language="java"
+                >
+                  {({ tokens, getLineProps, getTokenProps }) => (
+                    <pre className={styles.source}>
+                      {tokens.map((line, lineIndex) => (
+                        <div key={lineIndex} {...getLineProps({ line })}>
+                          <span className={styles.lineNumber}>
+                            {source.data.startLine + lineIndex}
+                          </span>
+                          {line.map((token, tokenIndex) => (
+                            <span key={tokenIndex} {...getTokenProps({ token })} />
+                          ))}
+                        </div>
+                      ))}
+                    </pre>
+                  )}
+                </Highlight>
+              )}
             </>
           ) : (
             <p className={styles.emptyInspector}>
