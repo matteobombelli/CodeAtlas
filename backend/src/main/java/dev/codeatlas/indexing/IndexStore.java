@@ -94,13 +94,14 @@ public class IndexStore {
                 UPDATE index_runs SET status = 'COMPLETE', phase = 'COMPLETE',
                     files_processed = files_discovered, completed_at = :completedAt,
                     warnings_count = :warnings, symbols_created = :symbols,
-                    endpoints_created = :endpoints
+                    endpoints_created = :endpoints, edges_created = :edges
                 WHERE id = :runId
                 """, new MapSqlParameterSource()
                 .addValue("runId", runId)
                 .addValue("warnings", analysis.warnings().size())
                 .addValue("symbols", analysis.symbols().size())
                 .addValue("endpoints", analysis.endpoints().size())
+                .addValue("edges", analysis.relationships().size())
                 .addValue("completedAt", Timestamp.from(completed)));
         jdbc.update("""
                 UPDATE repositories
@@ -184,6 +185,76 @@ public class IndexStore {
                     .addValue("message", message.substring(0, Math.min(1900, message.length())))
                     .addValue("sourceLine", warning.sourceLine()));
         }
+        for (var relationship : analysis.relationships()) {
+            jdbc.update("""
+                    INSERT INTO code_relationships (
+                        id, repository_id, source_symbol_id, target_symbol_id, kind,
+                        confidence, resolution_method, source_file_id, source_line,
+                        source_column, evidence_text, observed_in_run_id
+                    ) VALUES (
+                        :id, :repositoryId, :sourceSymbolId, :targetSymbolId, :kind,
+                        :confidence, :resolutionMethod, :sourceFileId, :sourceLine,
+                        :sourceColumn, :evidenceText, :runId
+                    )
+                    ON CONFLICT DO NOTHING
+                    """, new MapSqlParameterSource()
+                    .addValue("id", relationship.id())
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("sourceSymbolId", relationship.sourceSymbolId())
+                    .addValue("targetSymbolId", relationship.targetSymbolId())
+                    .addValue("kind", relationship.kind().name())
+                    .addValue("confidence", relationship.confidence())
+                    .addValue("resolutionMethod", relationship.resolutionMethod().name())
+                    .addValue("sourceFileId", relationship.sourceFileId())
+                    .addValue("sourceLine", relationship.sourceLine())
+                    .addValue("sourceColumn", relationship.sourceColumn())
+                    .addValue("evidenceText", relationship.evidenceText().substring(
+                            0, Math.min(1900, relationship.evidenceText().length())))
+                    .addValue("runId", runId));
+        }
+        for (var unresolved : analysis.unresolved()) {
+            jdbc.update("""
+                    INSERT INTO unresolved_relationships (
+                        id, repository_id, source_symbol_id, source_file_id, expression,
+                        expected_kind, source_line, failure_reason, candidate_count,
+                        observed_in_run_id
+                    ) VALUES (
+                        :id, :repositoryId, :sourceSymbolId, :sourceFileId, :expression,
+                        :expectedKind, :sourceLine, :failureReason, :candidateCount, :runId
+                    )
+                    """, new MapSqlParameterSource()
+                    .addValue("id", unresolved.id())
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("sourceSymbolId", unresolved.sourceSymbolId())
+                    .addValue("sourceFileId", unresolved.sourceFileId())
+                    .addValue("expression", unresolved.expression().substring(
+                            0, Math.min(1900, unresolved.expression().length())))
+                    .addValue("expectedKind", unresolved.expectedKind().name())
+                    .addValue("sourceLine", unresolved.sourceLine())
+                    .addValue("failureReason", unresolved.failureReason())
+                    .addValue("candidateCount", unresolved.candidateCount())
+                    .addValue("runId", runId));
+        }
+        for (var reference : analysis.externalReferences()) {
+            jdbc.update("""
+                    INSERT INTO external_references (
+                        id, repository_id, source_symbol_id, source_file_id,
+                        display_name, source_line, source_column, observed_in_run_id
+                    ) VALUES (
+                        :id, :repositoryId, :sourceSymbolId, :sourceFileId,
+                        :displayName, :sourceLine, :sourceColumn, :runId
+                    )
+                    """, new MapSqlParameterSource()
+                    .addValue("id", reference.id())
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("sourceSymbolId", reference.sourceSymbolId())
+                    .addValue("sourceFileId", reference.sourceFileId())
+                    .addValue("displayName", reference.displayName().substring(
+                            0, Math.min(1400, reference.displayName().length())))
+                    .addValue("sourceLine", reference.sourceLine())
+                    .addValue("sourceColumn", reference.sourceColumn())
+                    .addValue("runId", runId));
+        }
     }
 
     @Transactional
@@ -253,6 +324,7 @@ public class IndexStore {
                 row.getInt("warnings_count"),
                 row.getInt("symbols_created"),
                 row.getInt("endpoints_created"),
+                row.getInt("edges_created"),
                 row.getTimestamp("started_at").toInstant(),
                 completed == null ? null : completed.toInstant(),
                 row.getString("error_code"),

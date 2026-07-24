@@ -1,6 +1,6 @@
 package dev.codeatlas.indexing;
 
-import dev.codeatlas.analysis.JavaSourceAnalyzer;
+import dev.codeatlas.analysis.RepositoryAnalyzer;
 import dev.codeatlas.repository.RepositoryStore;
 import dev.codeatlas.shared.ConflictException;
 import jakarta.annotation.PostConstruct;
@@ -19,14 +19,14 @@ public class IndexingService {
     private final IndexStore indexStore;
     private final RepositoryStore repositoryStore;
     private final SourceFileDiscovery discovery;
-    private final JavaSourceAnalyzer analyzer;
+    private final RepositoryAnalyzer analyzer;
     private final Executor executor;
 
     public IndexingService(
             IndexStore indexStore,
             RepositoryStore repositoryStore,
             SourceFileDiscovery discovery,
-            JavaSourceAnalyzer analyzer,
+            RepositoryAnalyzer analyzer,
             @Qualifier("indexingExecutor") Executor executor) {
         this.indexStore = indexStore;
         this.repositoryStore = repositoryStore;

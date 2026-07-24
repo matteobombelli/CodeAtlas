@@ -9,5 +9,8 @@ public record RepositoryAnalysis(
         Map<java.util.UUID, String> packages,
         List<AnalyzedSymbol> symbols,
         List<AnalyzedEndpoint> endpoints,
-        List<AnalysisWarning> warnings) {
+        List<AnalysisWarning> warnings,
+        List<AnalyzedRelationship> relationships,
+        List<UnresolvedRelationship> unresolved,
+        List<ExternalReference> externalReferences) {
 }

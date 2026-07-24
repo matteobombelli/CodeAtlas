@@ -86,7 +86,9 @@ public class JavaSourceAnalyzer {
                         null));
             }
         }
-        return new RepositoryAnalysis(files, packages, symbols, endpoints, warnings);
+        return new RepositoryAnalysis(
+                files, packages, symbols, endpoints, warnings,
+                List.of(), List.of(), List.of());
     }
 
     private void analyzeType(
@@ -104,6 +106,13 @@ public class JavaSourceAnalyzer {
         String qualifiedName = packageName.isEmpty() ? typeName : packageName + "." + typeName;
         UUID typeId = UUID.randomUUID();
         Set<SymbolRole> roles = roles(type);
+        if (type instanceof ClassOrInterfaceDeclaration declaration
+                && declaration.getExtendedTypes().stream().anyMatch(parent ->
+                        Set.of("JpaRepository", "CrudRepository", "PagingAndSortingRepository")
+                                .contains(parent.getNameAsString()))) {
+            roles = EnumSet.copyOf(roles);
+            roles.add(SymbolRole.REPOSITORY);
+        }
         symbols.add(symbol(
                 file, typeId, parentId, kind(type), type.getNameAsString(), qualifiedName,
                 null, type, type.hasModifier(Modifier.Keyword.ABSTRACT), type.isStatic(), roles));

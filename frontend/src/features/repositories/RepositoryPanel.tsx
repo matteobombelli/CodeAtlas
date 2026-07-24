@@ -1,6 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { repositoryApi, type IndexRun, type Repository } from '../../api/repositories'
+import {
+  repositoryApi,
+  type HttpEndpoint,
+  type IndexRun,
+  type Repository,
+} from '../../api/repositories'
+import { ExecutionGraphView } from '../graph/ExecutionGraphView'
 import styles from './RepositoryPanel.module.css'
 
 function RunProgress({
@@ -41,9 +47,11 @@ function RunProgress({
 function RepositoryCard({
   repository,
   onChanged,
+  onOpenEndpoint,
 }: {
   repository: Repository
   onChanged: () => void
+  onOpenEndpoint: (endpoint: HttpEndpoint) => void
 }) {
   const [run, setRun] = useState<IndexRun | null>(null)
   const [endpointsOpen, setEndpointsOpen] = useState(false)
@@ -121,7 +129,11 @@ function RepositoryCard({
         <div className={styles.endpoints}>
           {endpoints.isLoading && <p>Loading endpoints…</p>}
           {endpoints.data?.map((endpoint) => (
-            <button key={endpoint.id} type="button">
+            <button
+              key={endpoint.id}
+              type="button"
+              onClick={() => onOpenEndpoint(endpoint)}
+            >
               <span className={styles.method}>{endpoint.httpMethod}</span>
               <strong>{endpoint.path}</strong>
               <small>
@@ -142,6 +154,10 @@ export function RepositoryPanel() {
   const queryClient = useQueryClient()
   const [displayName, setDisplayName] = useState('')
   const [relativePath, setRelativePath] = useState('')
+  const [selected, setSelected] = useState<{
+    repositoryId: string
+    endpoint: HttpEndpoint
+  } | null>(null)
   const repositories = useQuery({
     queryKey: ['repositories'],
     queryFn: repositoryApi.list,
@@ -203,12 +219,25 @@ export function RepositoryPanel() {
 
       <div className={styles.list}>
         {repositories.data?.map((repository) => (
-          <RepositoryCard key={repository.id} repository={repository} onChanged={refresh} />
+          <RepositoryCard
+            key={repository.id}
+            repository={repository}
+            onChanged={refresh}
+            onOpenEndpoint={(endpoint) =>
+              setSelected({ repositoryId: repository.id, endpoint })
+            }
+          />
         ))}
         {repositories.data?.length === 0 && (
           <p className={styles.empty}>Register a mounted Git repository to begin.</p>
         )}
       </div>
+      {selected && (
+        <ExecutionGraphView
+          repositoryId={selected.repositoryId}
+          endpoint={selected.endpoint}
+        />
+      )}
     </section>
   )
 }

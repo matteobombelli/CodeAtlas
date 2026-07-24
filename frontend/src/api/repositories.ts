@@ -26,6 +26,7 @@ export type IndexRun = {
   warningsCount: number
   symbolsCreated: number
   endpointsCreated: number
+  edgesCreated: number
   errorSummary: string | null
 }
 
@@ -42,6 +43,36 @@ export type HttpEndpoint = {
   endLine: number
   requestType: string | null
   responseType: string | null
+}
+
+export type GraphNode = {
+  id: string
+  resourceType: 'ENDPOINT' | 'SYMBOL' | 'EXTERNAL'
+  kind: string
+  label: string
+  subtitle: string
+  source: { path: string; startLine: number; endLine: number }
+  roles: string[]
+}
+
+export type GraphEdge = {
+  id: string
+  source: string
+  target: string
+  kind: string
+  confidence: number
+  confidenceLabel: string
+  resolutionMethod: string
+  evidence: { path: string; line: number; column: number; text: string }
+}
+
+export type ExecutionGraph = {
+  rootNodeId: string
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  warnings: { type: string; message: string }[]
+  truncated: boolean
+  truncationReason: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -70,4 +101,8 @@ export const repositoryApi = {
   run: (id: string) => request<IndexRun>(`/api/index-runs/${id}`),
   endpoints: (id: string) =>
     request<HttpEndpoint[]>(`/api/repositories/${id}/http-endpoints`),
+  endpointGraph: (repositoryId: string, endpointId: string, maxDepth = 4) =>
+    request<ExecutionGraph>(
+      `/api/repositories/${repositoryId}/graphs/endpoint/${endpointId}?maxDepth=${maxDepth}`,
+    ),
 }

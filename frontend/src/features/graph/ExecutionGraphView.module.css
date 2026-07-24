@@ -1,0 +1,224 @@
+.atlas {
+  margin-top: 28px;
+  overflow: hidden;
+  border: 1px solid #27374b;
+  border-radius: 18px;
+  background: #0b1421;
+}
+
+.atlas > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #27374b;
+}
+
+.atlas header p,
+.atlas header h3,
+.atlas header span {
+  margin: 0;
+}
+
+.atlas header p,
+.kind {
+  color: #76bfb0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.atlas header h3 {
+  margin-top: 3px;
+  font-size: 1.25rem;
+}
+
+.atlas header span {
+  color: #829299;
+  font-size: 0.76rem;
+}
+
+.atlas header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #8c9ba1;
+  font-size: 0.78rem;
+}
+
+.atlas select {
+  padding: 7px;
+  border: 1px solid #33475e;
+  border-radius: 7px;
+  background: #111d2d;
+  color: #edf3eb;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 620px;
+}
+
+.canvas {
+  position: relative;
+  min-width: 0;
+}
+
+.canvas :global(.react-flow__controls button) {
+  border-color: #33475e;
+  background: #111d2d;
+  fill: #bdc9c9;
+}
+
+.loading {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #91a0a7;
+}
+
+.nodeLabel {
+  display: grid;
+  overflow: hidden;
+  gap: 3px;
+  text-align: left;
+}
+
+.nodeLabel span {
+  color: #83979b;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.nodeLabel strong,
+.nodeLabel small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nodeLabel strong {
+  font-size: 0.8rem;
+}
+
+.nodeLabel small {
+  color: #7f9096;
+  font-size: 0.6rem;
+}
+
+.inspector {
+  overflow: auto;
+  padding: 20px;
+  border-left: 1px solid #27374b;
+  background: #101a28;
+}
+
+.inspector h4 {
+  margin: 7px 0 3px;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  color: #7f9096;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.inspector dl {
+  display: grid;
+  gap: 5px;
+  margin: 22px 0;
+}
+
+.inspector dt {
+  margin-top: 7px;
+  color: #718289;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+}
+
+.inspector dd {
+  margin: 0;
+  color: #c3cecb;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.inspector h5 {
+  margin: 22px 0 8px;
+  color: #91a0a7;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.evidence {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border-radius: 9px;
+  background: #0a1420;
+}
+
+.evidence strong,
+.evidence span,
+.evidence p,
+.evidence small {
+  margin: 0;
+  font-size: 0.68rem;
+  overflow-wrap: anywhere;
+}
+
+.evidence span,
+.evidence small {
+  color: #718289;
+}
+
+.evidence p {
+  color: #aebbb9;
+}
+
+.warning,
+.error {
+  margin: 10px 20px 0;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgb(145 112 71 / 20%);
+  color: #d8b384;
+  font-size: 0.75rem;
+}
+
+.error {
+  background: rgb(145 71 71 / 20%);
+  color: #e29a91;
+}
+
+.emptyInspector {
+  margin-top: 40px;
+  color: #718289;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas {
+    min-height: 520px;
+  }
+
+  .inspector {
+    border-top: 1px solid #27374b;
+    border-left: 0;
+  }
+}

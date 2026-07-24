@@ -14,6 +14,7 @@ public record IndexRun(
         int warningsCount,
         int symbolsCreated,
         int endpointsCreated,
+        int edgesCreated,
         Instant startedAt,
         Instant completedAt,
         String errorCode,
