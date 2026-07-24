@@ -4,7 +4,8 @@ COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle
 COPY backend ./backend
 COPY demo-app/build.gradle.kts ./demo-app/build.gradle.kts
-RUN ./gradlew :backend:bootJar --no-daemon
+RUN --mount=type=cache,target=/root/.gradle \
+    ./gradlew :backend:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S codeatlas && adduser -S codeatlas -G codeatlas

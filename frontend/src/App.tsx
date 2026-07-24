@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { RepositoryPanel } from './features/repositories/RepositoryPanel'
 import styles from './App.module.css'
 
 type HealthResponse = {
@@ -68,6 +69,7 @@ export function App() {
           <Status label="PostgreSQL" status={databaseStatus} />
         </div>
       </section>
+      <RepositoryPanel />
     </main>
   )
 }

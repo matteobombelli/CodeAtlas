@@ -21,6 +21,9 @@ services:
       CODE_ATLAS_DATABASE_URL: jdbc:postgresql://postgres:5432/code_atlas
       CODE_ATLAS_DATABASE_USERNAME: code_atlas
       CODE_ATLAS_DATABASE_PASSWORD: code_atlas
+      CODE_ATLAS_REPOSITORIES_ROOT: /workspace/repositories
+    volumes:
+      - ./:/workspace/repositories/code-atlas:ro,Z
     depends_on:
       postgres:
         condition: service_healthy

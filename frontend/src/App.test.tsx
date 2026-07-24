@@ -8,15 +8,18 @@ afterEach(() => {
 })
 
 test('shows backend and database health', async () => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        status: 'UP',
-        components: { db: { status: 'UP' } },
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = input.toString()
+    const body = url.includes('/actuator/')
+      ? { status: 'UP', components: { db: { status: 'UP' } } }
+      : []
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
       }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    ),
-  )
+    )
+  })
 
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -31,4 +34,5 @@ test('shows backend and database health', async () => {
   expect(screen.getByText('Backend API')).toBeInTheDocument()
   expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
   expect(await screen.findAllByText('UP')).toHaveLength(2)
+  expect(await screen.findByText('Register a mounted Git repository to begin.')).toBeInTheDocument()
 })

@@ -20,3 +20,11 @@ management:
 
 server:
   shutdown: graceful
+
+code-atlas:
+  repositories-root: ${CODE_ATLAS_REPOSITORIES_ROOT:/workspace/repositories}
+  max-source-file-bytes: 1048576
+  max-source-files: 10000
+  indexing:
+    max-concurrent-jobs: 1
+    queue-capacity: 10

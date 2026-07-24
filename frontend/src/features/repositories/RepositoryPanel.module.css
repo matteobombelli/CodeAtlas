@@ -1,0 +1,198 @@
+.panel {
+  max-width: 850px;
+  margin: 72px auto 0;
+}
+
+.titleRow,
+.cardTop,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.titleRow p,
+.titleRow h3,
+.card h4,
+.card p,
+.progress p {
+  margin: 0;
+}
+
+.titleRow p {
+  color: #76bfb0;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.titleRow h3 {
+  margin-top: 4px;
+  font-size: 1.55rem;
+}
+
+.titleRow > span,
+.count {
+  color: #91a0a7;
+  font-size: 0.8rem;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #27374b;
+  border-radius: 16px;
+  background: rgb(17 29 45 / 82%);
+}
+
+.form label {
+  display: grid;
+  gap: 7px;
+  color: #9dacb2;
+  font-size: 0.78rem;
+}
+
+.form input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #32465d;
+  border-radius: 9px;
+  outline: none;
+  background: #0c1726;
+  color: #edf3eb;
+}
+
+.form input:focus {
+  border-color: #6db5a7;
+}
+
+.form button,
+.actions button {
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 9px;
+  background: #6db5a7;
+  color: #071511;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.form button:disabled,
+.actions button:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+
+.list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.card {
+  padding: 20px;
+  border: 1px solid #27374b;
+  border-radius: 16px;
+  background: rgb(17 29 45 / 70%);
+}
+
+.badge {
+  color: #76bfb0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.card h4 {
+  margin-top: 5px;
+  font-size: 1.1rem;
+}
+
+.cardTop p {
+  margin-top: 4px;
+  color: #819097;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+.card dl {
+  display: flex;
+  gap: 28px;
+  margin: 18px 0;
+}
+
+.card dl div {
+  display: grid;
+  gap: 3px;
+}
+
+.card dt {
+  color: #6f8189;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.card dd {
+  margin: 0;
+  color: #bac6c7;
+  font-size: 0.82rem;
+}
+
+.actions {
+  justify-content: flex-start;
+}
+
+.actions .secondary {
+  border: 1px solid #32465d;
+  background: transparent;
+  color: #aebabc;
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #0c1726;
+  color: #91a0a7;
+  font-size: 0.78rem;
+}
+
+.progress strong {
+  color: #c8d3d0;
+}
+
+.progress p {
+  grid-column: 1 / -1;
+  color: #f0a487;
+}
+
+.error {
+  margin: 12px 0;
+  color: #f0a487;
+}
+
+.empty {
+  padding: 28px;
+  border: 1px dashed #32465d;
+  border-radius: 14px;
+  color: #819097;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+
+  .card dl {
+    display: grid;
+  }
+}
