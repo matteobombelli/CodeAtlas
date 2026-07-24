@@ -3,6 +3,7 @@ package dev.codeatlas.indexing;
 import dev.codeatlas.analysis.RepositoryAnalyzer;
 import dev.codeatlas.analysis.RepositoryAnalysis;
 import dev.codeatlas.git.GitHistoryAnalyzer;
+import dev.codeatlas.repository.RepositoryService;
 import dev.codeatlas.repository.RepositoryStore;
 import dev.codeatlas.shared.ConflictException;
 import jakarta.annotation.PostConstruct;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 public class IndexingService {
 
     private final IndexStore indexStore;
+    private final RepositoryService repositoryService;
     private final RepositoryStore repositoryStore;
     private final SourceFileDiscovery discovery;
     private final RepositoryAnalyzer analyzer;
@@ -32,6 +34,7 @@ public class IndexingService {
 
     public IndexingService(
             IndexStore indexStore,
+            RepositoryService repositoryService,
             RepositoryStore repositoryStore,
             SourceFileDiscovery discovery,
             RepositoryAnalyzer analyzer,
@@ -40,6 +43,7 @@ public class IndexingService {
             IncrementalRepositoryAnalyzer incrementalAnalyzer,
             @Qualifier("indexingExecutor") Executor executor) {
         this.indexStore = indexStore;
+        this.repositoryService = repositoryService;
         this.repositoryStore = repositoryStore;
         this.discovery = discovery;
         this.analyzer = analyzer;
@@ -55,7 +59,7 @@ public class IndexingService {
     }
 
     public IndexRun start(UUID repositoryId, IndexMode mode) {
-        var repository = repositoryStore.get(repositoryId);
+        var repository = repositoryService.refreshGitState(repositoryId);
         if (mode == IndexMode.INCREMENTAL && repository.activeIndexRunId() == null) {
             mode = IndexMode.FULL;
         }
@@ -80,6 +84,7 @@ public class IndexingService {
 
     private void execute(UUID repositoryId, UUID runId, IndexMode mode) {
         try {
+            String startingHead = repositoryService.refreshGitState(repositoryId).headSha();
             Path root = repositoryStore.canonicalPath(repositoryId);
             indexStore.phase(runId, IndexPhase.DISCOVERING, 0, 0);
             List<Path> paths = discovery.discover(root);
@@ -93,10 +98,11 @@ public class IndexingService {
             }
             indexStore.phase(runId, IndexPhase.PARSING, paths.size(), paths.size());
             if (mode == IndexMode.INCREMENTAL) {
-                executeIncremental(repositoryId, runId, root, files);
+                executeIncremental(repositoryId, runId, root, files, startingHead);
             } else {
                 RepositoryAnalysis analysis = fullAnalysis(root, files);
                 assertUnchanged(root, files);
+                assertHeadUnchanged(repositoryId, startingHead);
                 indexStore.complete(repositoryId, runId, analysis);
             }
         } catch (Exception exception) {
@@ -110,7 +116,8 @@ public class IndexingService {
             UUID repositoryId,
             UUID runId,
             Path root,
-            List<DiscoveredSourceFile> currentFiles) {
+            List<DiscoveredSourceFile> currentFiles,
+            String startingHead) {
         Map<String, String> previous = snapshots.hashes(repositoryId);
         Map<String, DiscoveredSourceFile> current = currentFiles.stream()
                 .collect(java.util.stream.Collectors.toMap(
@@ -151,8 +158,16 @@ public class IndexingService {
                     repositoryId, root, currentFiles, changes);
         }
         assertUnchanged(root, currentFiles);
+        assertHeadUnchanged(repositoryId, startingHead);
         indexStore.completeIncremental(
                 repositoryId, runId, analysis, changes, currentFiles.size());
+    }
+
+    private void assertHeadUnchanged(UUID repositoryId, String startingHead) {
+        String currentHead = repositoryService.refreshGitState(repositoryId).headSha();
+        if (!java.util.Objects.equals(startingHead, currentHead)) {
+            throw new RepositoryChangedDuringIndexException();
+        }
     }
 
     private RepositoryAnalysis fullAnalysis(

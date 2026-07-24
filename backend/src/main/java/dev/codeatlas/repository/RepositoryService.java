@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.UUID;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
-import org.eclipse.jgit.lib.RepositoryBuilder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -27,25 +26,32 @@ public class RepositoryService {
             throw new InvalidRequestException("displayName must contain between 1 and 200 characters");
         }
         Path path = pathGuard.resolve(relativePath);
-        try (org.eclipse.jgit.lib.Repository gitRepository =
-                     new RepositoryBuilder()
-                             .setWorkTree(path.toFile())
-                             .readEnvironment()
-                             .findGitDir()
-                             .build();
-             Git git = new Git(gitRepository)) {
+        GitState gitState = readGitState(path);
+        return store.create(
+                UUID.randomUUID(),
+                displayName.strip(),
+                Path.of(relativePath).normalize().toString().replace('\\', '/'),
+                path,
+                gitState.branch(),
+                gitState.headSha(),
+                gitState.dirty(),
+                detectBuildSystem(path));
+    }
+
+    public RegisteredRepository refreshGitState(UUID id) {
+        Path path = store.canonicalPath(id);
+        GitState gitState = readGitState(path);
+        store.updateGitState(id, gitState.branch(), gitState.headSha(), gitState.dirty());
+        return store.get(id);
+    }
+
+    private GitState readGitState(Path path) {
+        try (Git git = Git.open(path.toFile())) {
+            var gitRepository = git.getRepository();
             String branch = gitRepository.getBranch();
             var head = gitRepository.resolve("HEAD");
             boolean dirty = !git.status().call().isClean();
-            return store.create(
-                    UUID.randomUUID(),
-                    displayName.strip(),
-                    Path.of(relativePath).normalize().toString().replace('\\', '/'),
-                    path,
-                    branch,
-                    head == null ? null : head.name(),
-                    dirty,
-                    detectBuildSystem(path));
+            return new GitState(branch, head == null ? null : head.name(), dirty);
         } catch (IOException | GitAPIException exception) {
             throw new InvalidRequestException("Git metadata could not be read", exception);
         }
@@ -79,5 +85,8 @@ public class RepositoryService {
             return BuildSystem.MAVEN;
         }
         return BuildSystem.UNKNOWN;
+    }
+
+    private record GitState(String branch, String headSha, boolean dirty) {
     }
 }

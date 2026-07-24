@@ -82,6 +82,25 @@ public class RepositoryStore {
         return Path.of(results.getFirst());
     }
 
+    public void updateGitState(
+            UUID id,
+            String branch,
+            String headSha,
+            boolean dirty) {
+        int changed = jdbc.update("""
+                UPDATE repositories
+                SET default_branch = :branch, head_sha = :headSha, dirty = :dirty
+                WHERE id = :id
+                """, new MapSqlParameterSource()
+                .addValue("id", id)
+                .addValue("branch", branch)
+                .addValue("headSha", headSha)
+                .addValue("dirty", dirty));
+        if (changed == 0) {
+            throw new NotFoundException("Repository " + id + " does not exist");
+        }
+    }
+
     @Transactional
     public void delete(UUID id) {
         jdbc.update(
