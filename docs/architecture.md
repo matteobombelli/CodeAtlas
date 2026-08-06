@@ -1,10 +1,10 @@
 # Architecture
 
-Code Atlas is a local-first modular monolith.
+Spring Boot Static Analysis is a local-first modular monolith.
 
 The React frontend calls a Spring Boot REST API. The backend coordinates
-repository discovery, static analysis, graph projection, Git inspection, and
-PostgreSQL persistence. Imported repositories are mounted read-only beneath
+repository discovery, static analysis, graph projection, and PostgreSQL
+persistence. Imported repositories are mounted read-only beneath
 configured repository roots and are never built or executed.
 
 The indexing coordinator drives a staged pipeline and writes a new active graph
@@ -16,13 +16,13 @@ symbol, and blast-radius API responses.
 React UI
    │ REST
 Spring Boot modular monolith
-   ├── repository boundary + Git metadata
+   ├── repository boundary
    ├── indexing coordinator
    ├── Java/Spring relationship analysis
    ├── graph/source query projections
    └── PostgreSQL + Flyway
              │
-        read-only Git mount
+        read-only project mount
 ```
 
 PostgreSQL stores the normalized code model and serves bounded graph queries.

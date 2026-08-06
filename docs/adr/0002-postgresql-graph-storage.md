@@ -11,7 +11,7 @@ PostgreSQL. Use recursive SQL for bounded traversal.
 ## Rationale
 
 The graph is relational, query depth is bounded, and PostgreSQL also supports the
-job and repository metadata required by the product. A second graph database
+job and repository metadata required by the experiment. A second graph database
 would add operational complexity before demonstrating the core analysis.
 
 ## Consequences

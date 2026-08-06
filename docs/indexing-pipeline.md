@@ -9,11 +9,10 @@
 4. Parse Java 21 syntax and persist parse warnings without abandoning other files.
 5. Extract source-located symbols, Spring roles, and combined HTTP mappings.
 6. Resolve structural, call, test, and Spring Data/entity relationships.
-7. Walk Git history once to aggregate file-level statistics.
-8. Re-check the complete source snapshot.
-9. Replace the active graph in one database transaction.
+7. Re-check the complete source snapshot.
+8. Replace the active graph in one database transaction.
 
-Imported repositories are treated as data. Code Atlas never invokes their
+Imported repositories are treated as data. Spring Boot Static Analysis never invokes their
 wrapper, build tool, scripts, annotation processors, or application code.
 
 ## Incremental index
