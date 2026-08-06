@@ -1,4 +1,4 @@
-.atlas {
+.graph {
   margin-top: 28px;
   overflow: hidden;
   border: 1px solid #27374b;
@@ -6,7 +6,7 @@
   background: #0b1421;
 }
 
-.atlas > header {
+.graph > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -15,13 +15,13 @@
   border-bottom: 1px solid #27374b;
 }
 
-.atlas header p,
-.atlas header h3,
-.atlas header span {
+.graph header p,
+.graph header h3,
+.graph header span {
   margin: 0;
 }
 
-.atlas header p,
+.graph header p,
 .kind {
   color: #76bfb0;
   font-size: 0.7rem;
@@ -29,17 +29,17 @@
   letter-spacing: 0.09em;
 }
 
-.atlas header h3 {
+.graph header h3 {
   margin-top: 3px;
   font-size: 1.25rem;
 }
 
-.atlas header span {
+.graph header span {
   color: #829299;
   font-size: 0.76rem;
 }
 
-.atlas header label {
+.graph header label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -70,7 +70,7 @@
   color: #c3b9e5;
 }
 
-.atlas select {
+.graph select {
   padding: 7px;
   border: 1px solid #33475e;
   border-radius: 7px;

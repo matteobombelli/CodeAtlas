@@ -12,7 +12,7 @@ versioning.
 - Added secure source excerpts and file-level Git history.
 - Added hash-based incremental rescanning with dependant invalidation and atomic
   graph replacement.
-- Added the React Flow/ELK atlas UI, Compose self-analysis demo, and Atlas Tasks
+- Added the React Flow/ELK graph UI, Compose self-analysis demo, and Demo Tasks
   fixture application.
 
 Known limitations are documented in `docs/limitations.md`.

@@ -7,6 +7,6 @@ Combine class and method paths; support composed mapping annotations, path/value
 attributes, arrays, and trivial string concatenation. Keep endpoints as distinct
 resources anchored to controller methods.
 
-Acceptance: the Atlas Tasks controllers, combined paths, repositories, and
+Acceptance: the Demo Tasks controllers, combined paths, repositories, and
 entities are detected exactly by fixture tests and exposed through an endpoint
 list API.

@@ -37,7 +37,7 @@ background on every start, so a restart never serves a stale graph. Browse the
 detected endpoints and open `POST /api/repositories/{repositoryId}/index` to
 follow the indexing workflow.
 
-The independent `demo-app` Gradle project is **Atlas Tasks**, a small Spring Boot
+The independent `demo-app` Gradle project is **Demo Tasks**, a small Spring Boot
 issue tracker containing projects, issues, assignment, notifications, comments,
 derived repository queries, and integration tests. It gives the analyzer a
 compact, manually verifiable target inside the self-analysis repository.
@@ -163,7 +163,7 @@ See [limitations](docs/limitations.md) for the full boundary.
 
 - `backend` — Spring Boot API, indexing engine, graph queries, and Flyway schema
 - `frontend` — React, React Flow, ELK layout, and source/evidence inspector
-- `demo-app` — independent Atlas Tasks Spring Boot analysis target
+- `demo-app` — independent Demo Tasks Spring Boot analysis target
 - `docs` — architecture, confidence model, demo script, and ADRs
 
 ## License
