@@ -39,6 +39,10 @@ public class DemoBootstrap implements ApplicationRunner {
                 properties.displayName(), properties.relativePath()));
         if (repository.activeIndexRunId() == null) {
             indexing.start(repository.id(), IndexMode.FULL);
+        } else if (properties.reindexOnStartup()) {
+            // The mounted source can change between restarts, so refresh rather than
+            // serving the graph the previous container left in the database.
+            indexing.start(repository.id(), IndexMode.INCREMENTAL);
         }
     }
 }

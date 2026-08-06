@@ -25,10 +25,15 @@ sbsa:
   repositories-root: ${SBSA_REPOSITORIES_ROOT:/workspace/repositories}
   max-source-file-bytes: 1048576
   max-source-files: 10000
+  read-only: ${SBSA_READ_ONLY:false}
   indexing:
     max-concurrent-jobs: 1
     queue-capacity: 10
+  graph:
+    max-nodes: ${SBSA_GRAPH_MAX_NODES:100}
+    max-edges: ${SBSA_GRAPH_MAX_EDGES:250}
   demo:
     enabled: ${SBSA_DEMO_ENABLED:false}
     display-name: ${SBSA_DEMO_DISPLAY_NAME:Spring Boot Static Analysis}
     relative-path: ${SBSA_DEMO_RELATIVE_PATH:spring-boot-static-analysis}
+    reindex-on-startup: ${SBSA_DEMO_REINDEX_ON_STARTUP:true}

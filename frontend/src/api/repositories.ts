@@ -113,7 +113,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>)
 }
 
+export type ClientConfig = {
+  readOnly: boolean
+}
+
 export const repositoryApi = {
+  config: () => request<ClientConfig>('/api/config'),
   list: () => request<Repository[]>('/api/repositories'),
   create: (displayName: string, relativePath: string) =>
     request<Repository>('/api/repositories', {

@@ -1,0 +1,31 @@
+# Production overlay. Layered on top of compose.yaml:
+#
+#   docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Differences from the local demo: the API is read-only, published ports are
+# bound to loopback so a reverse proxy is the only way in, the database password
+# comes from the environment, and every service restarts with the Docker daemon.
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${SBSA_DB_PASSWORD:?SBSA_DB_PASSWORD is required}
+    mem_limit: 512m
+
+  backend:
+    restart: unless-stopped
+    environment:
+      SBSA_DATABASE_PASSWORD: ${SBSA_DB_PASSWORD:?SBSA_DB_PASSWORD is required}
+      SBSA_READ_ONLY: "true"
+    ports: !override
+      - "127.0.0.1:8085:8080"
+    mem_limit: 1g
+
+  frontend:
+    restart: unless-stopped
+    build:
+      args:
+        VITE_BASE_PATH: /projects/spring-boot-static-analysis/
+    ports: !override
+      - "127.0.0.1:3003:80"
+    mem_limit: 128m
