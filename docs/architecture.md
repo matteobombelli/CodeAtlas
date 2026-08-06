@@ -1,6 +1,6 @@
 # Architecture
 
-Code Atlas is a local-first modular monolith.
+Spring Boot Static Analysis is a local-first modular monolith.
 
 The React frontend calls a Spring Boot REST API. The backend coordinates
 repository discovery, static analysis, graph projection, Git inspection, and

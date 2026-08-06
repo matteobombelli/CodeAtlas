@@ -1,3 +1,5 @@
+import { apiUrl } from './http'
+
 export type RepositoryStatus = 'REGISTERED' | 'INDEXING' | 'READY' | 'FAILED'
 
 export type Repository = {
@@ -100,7 +102,7 @@ export type GitFileHistory = {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   })

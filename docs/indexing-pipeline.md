@@ -13,7 +13,7 @@
 8. Re-check the complete source snapshot.
 9. Replace the active graph in one database transaction.
 
-Imported repositories are treated as data. Code Atlas never invokes their
+Imported repositories are treated as data. Spring Boot Static Analysis never invokes their
 wrapper, build tool, scripts, annotation processors, or application code.
 
 ## Incremental index

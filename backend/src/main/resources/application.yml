@@ -1,10 +1,10 @@
 spring:
   application:
-    name: code-atlas
+    name: sbsa
   datasource:
-    url: ${CODE_ATLAS_DATABASE_URL:jdbc:postgresql://localhost:5432/code_atlas}
-    username: ${CODE_ATLAS_DATABASE_USERNAME:code_atlas}
-    password: ${CODE_ATLAS_DATABASE_PASSWORD:code_atlas}
+    url: ${SBSA_DATABASE_URL:jdbc:postgresql://localhost:5432/sbsa}
+    username: ${SBSA_DATABASE_USERNAME:sbsa}
+    password: ${SBSA_DATABASE_PASSWORD:sbsa}
   flyway:
     enabled: true
 
@@ -21,14 +21,14 @@ management:
 server:
   shutdown: graceful
 
-code-atlas:
-  repositories-root: ${CODE_ATLAS_REPOSITORIES_ROOT:/workspace/repositories}
+sbsa:
+  repositories-root: ${SBSA_REPOSITORIES_ROOT:/workspace/repositories}
   max-source-file-bytes: 1048576
   max-source-files: 10000
   indexing:
     max-concurrent-jobs: 1
     queue-capacity: 10
   demo:
-    enabled: ${CODE_ATLAS_DEMO_ENABLED:false}
-    display-name: ${CODE_ATLAS_DEMO_DISPLAY_NAME:Code Atlas}
-    relative-path: ${CODE_ATLAS_DEMO_RELATIVE_PATH:code-atlas}
+    enabled: ${SBSA_DEMO_ENABLED:false}
+    display-name: ${SBSA_DEMO_DISPLAY_NAME:Spring Boot Static Analysis}
+    relative-path: ${SBSA_DEMO_RELATIVE_PATH:spring-boot-static-analysis}

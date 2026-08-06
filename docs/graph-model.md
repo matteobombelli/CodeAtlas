@@ -1,6 +1,6 @@
 # Graph model
 
-Code Atlas stores one normalized symbol table and a typed relationship table.
+Spring Boot Static Analysis stores one normalized symbol table and a typed relationship table.
 Language identity and framework meaning remain separate: a Java `CLASS` can have
 the `SERVICE` role, while an HTTP endpoint is a distinct resource anchored to
 its controller method.

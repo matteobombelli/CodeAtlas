@@ -4,7 +4,7 @@ plugins {
 }
 
 allprojects {
-    group = "dev.codeatlas"
+    group = "dev.sbsa"
     version = "0.1.0"
 
     repositories {

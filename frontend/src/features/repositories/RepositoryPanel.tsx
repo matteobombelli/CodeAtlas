@@ -230,7 +230,7 @@ export function RepositoryPanel() {
             required
             value={relativePath}
             onChange={(event) => setRelativePath(event.target.value)}
-            placeholder="code-atlas"
+            placeholder="sbsa"
           />
         </label>
         <button disabled={create.isPending} type="submit">
@@ -257,7 +257,7 @@ export function RepositoryPanel() {
         )}
       </div>
       {selected && (
-        <Suspense fallback={<p className={styles.empty}>Loading the atlas…</p>}>
+        <Suspense fallback={<p className={styles.empty}>Loading the graph…</p>}>
           <ExecutionGraphView
             repositoryId={selected.repositoryId}
             endpoint={selected.endpoint}
