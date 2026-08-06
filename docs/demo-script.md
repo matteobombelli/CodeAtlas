@@ -1,7 +1,7 @@
 # Demo script
 
 1. Run `docker compose up --build` and open <http://localhost:3000>.
-2. Wait for **Code Atlas · self-analysis** to become `READY`.
+2. Wait for **Spring Boot Static Analysis · self-analysis** to become `READY`.
 3. Browse endpoints and select
    `POST /api/repositories/{repositoryId}/index`.
 4. Follow `RepositoryController.index` into `IndexingService`, parsing,

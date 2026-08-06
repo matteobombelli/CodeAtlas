@@ -13,7 +13,7 @@ that the whole execution path runs in production.
 | Unique project method by name and arity | 0.70 | Inferred |
 | Test class naming convention | 0.60 | Inferred |
 
-When multiple declarations remain possible, Code Atlas stores the expression,
+When multiple declarations remain possible, Spring Boot Static Analysis stores the expression,
 candidate count, and `MULTIPLE_CANDIDATES` reason. It does not choose the first
 candidate. Calls whose implementation lies outside indexed project source are
 stored as external terminal references. Unsupported or unscoped expressions

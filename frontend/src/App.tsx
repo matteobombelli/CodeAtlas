@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { apiUrl } from './api/http'
 import { RepositoryPanel } from './features/repositories/RepositoryPanel'
 import styles from './App.module.css'
 
@@ -10,7 +11,7 @@ type HealthResponse = {
 }
 
 async function getHealth(): Promise<HealthResponse> {
-  const response = await fetch('/actuator/health')
+  const response = await fetch(apiUrl('/actuator/health'))
   if (!response.ok) {
     throw new Error(`Health request failed with ${response.status}`)
   }
@@ -46,10 +47,10 @@ export function App() {
   return (
     <main className={styles.shell}>
       <header className={styles.header}>
-        <div className={styles.mark}>CA</div>
+        <div className={styles.mark}>SA</div>
         <div>
           <p className={styles.eyebrow}>LOCAL CODE CARTOGRAPHY</p>
-          <h1>Code Atlas</h1>
+          <h1>Spring Boot Static Analysis</h1>
         </div>
       </header>
 

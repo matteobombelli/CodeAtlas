@@ -2,31 +2,31 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: code_atlas
-      POSTGRES_USER: code_atlas
-      POSTGRES_PASSWORD: code_atlas
+      POSTGRES_DB: sbsa
+      POSTGRES_USER: sbsa
+      POSTGRES_PASSWORD: sbsa
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U code_atlas -d code_atlas"]
+      test: ["CMD-SHELL", "pg_isready -U sbsa -d sbsa"]
       interval: 3s
       timeout: 3s
       retries: 20
     volumes:
-      - code-atlas-postgres:/var/lib/postgresql/data
+      - sbsa-postgres:/var/lib/postgresql/data
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      CODE_ATLAS_DATABASE_URL: jdbc:postgresql://postgres:5432/code_atlas
-      CODE_ATLAS_DATABASE_USERNAME: code_atlas
-      CODE_ATLAS_DATABASE_PASSWORD: code_atlas
-      CODE_ATLAS_REPOSITORIES_ROOT: /workspace/repositories
-      CODE_ATLAS_DEMO_ENABLED: "true"
-      CODE_ATLAS_DEMO_DISPLAY_NAME: Code Atlas · self-analysis
-      CODE_ATLAS_DEMO_RELATIVE_PATH: code-atlas
+      SBSA_DATABASE_URL: jdbc:postgresql://postgres:5432/sbsa
+      SBSA_DATABASE_USERNAME: sbsa
+      SBSA_DATABASE_PASSWORD: sbsa
+      SBSA_REPOSITORIES_ROOT: /workspace/repositories
+      SBSA_DEMO_ENABLED: "true"
+      SBSA_DEMO_DISPLAY_NAME: Spring Boot Static Analysis · self-analysis
+      SBSA_DEMO_RELATIVE_PATH: spring-boot-static-analysis
     volumes:
-      - ./:/workspace/repositories/code-atlas:ro,Z
+      - ./:/workspace/repositories/spring-boot-static-analysis:ro,Z
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,4 +48,4 @@ services:
       - "3000:80"
 
 volumes:
-  code-atlas-postgres:
+  sbsa-postgres:

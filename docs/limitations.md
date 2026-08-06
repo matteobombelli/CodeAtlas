@@ -1,6 +1,6 @@
 # v0.1 limitations
 
-Code Atlas is an inspectable approximation for ordinary Spring Boot projects,
+Spring Boot Static Analysis is an inspectable approximation for ordinary Spring Boot projects,
 not a Java compiler or runtime tracer.
 
 Supported well:

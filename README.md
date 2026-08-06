@@ -1,8 +1,8 @@
-# Code Atlas
+# Spring Boot Static Analysis
 
 Interactive execution maps and change-impact analysis for Spring Boot repositories.
 
-Code Atlas is a local-first static-analysis tool. Select a REST endpoint to see
+Spring Boot Static Analysis is a local-first static-analysis tool. Select a REST endpoint to see
 the controller, application calls, Spring Data access, JPA entities, tests,
 source evidence, Git history, and potential blast radius behind it. Every edge
 includes its confidence and resolution evidence; ambiguity is retained as a
@@ -10,7 +10,7 @@ diagnostic instead of being silently resolved.
 
 ## What it reveals
 
-For an indexed endpoint, Code Atlas can show:
+For an indexed endpoint, Spring Boot Static Analysis can show:
 
 - controller-to-service and service-to-repository calls;
 - entity reads and writes inferred from Spring Data methods;
@@ -32,7 +32,7 @@ docker compose up --build
 ```
 
 Open <http://localhost:3000>. On a clean database, Compose mounts this checkout
-read-only, registers it as **Code Atlas · self-analysis**, and indexes it in the
+read-only, registers it as **Spring Boot Static Analysis · self-analysis**, and indexes it in the
 background. Browse the detected endpoints and open
 `POST /api/repositories/{repositoryId}/index` to follow the indexing workflow.
 
@@ -73,12 +73,12 @@ npm run dev
 ```
 
 The backend expects PostgreSQL at `localhost:5432` by default. Repository API
-paths are always relative to `CODE_ATLAS_REPOSITORIES_ROOT`; imported projects
+paths are always relative to `SBSA_REPOSITORIES_ROOT`; imported projects
 are never built or executed.
 
 ## Architecture
 
-Code Atlas is a Spring Boot modular monolith with a React frontend and
+Spring Boot Static Analysis is a Spring Boot modular monolith with a React frontend and
 PostgreSQL graph storage. Indexing is a bounded background job:
 
 ```text

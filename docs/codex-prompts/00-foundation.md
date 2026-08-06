@@ -1,6 +1,6 @@
 # Milestone 0 prompt — foundation
 
-Create the Code Atlas monorepo foundation.
+Create the Spring Boot Static Analysis monorepo foundation.
 
 Use Java 21, Spring Boot, Gradle Kotlin DSL, PostgreSQL, Flyway, React,
 TypeScript, Vite, and React Flow. Add backend and frontend containers plus
