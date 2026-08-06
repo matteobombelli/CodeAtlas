@@ -239,7 +239,7 @@ export function RepositoryPanel() {
               maxLength={200}
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Atlas Tasks"
+              placeholder="Demo Tasks"
             />
           </label>
           <label>

@@ -12,7 +12,7 @@
 8. Make a harmless one-file Java edit and choose **Rescan repository**.
 9. Show the processed/total and added/modified/deleted summary.
 
-For a compact domain example, browse the Atlas Tasks endpoints under
+For a compact domain example, browse the Demo Tasks endpoints under
 `demo-app`, including issue assignment and comments. The two notification
 implementations deliberately expose polymorphism rather than pretending every
 call is exact.

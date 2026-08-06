@@ -2,7 +2,7 @@ package dev.sbsa.demo.project;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.sbsa.demo.AtlasTasksApplication;
+import dev.sbsa.demo.DemoTasksApplication;
 import dev.sbsa.demo.comment.CommentService;
 import dev.sbsa.demo.issue.AssignmentService;
 import dev.sbsa.demo.issue.IssueService;
@@ -16,7 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest(classes = AtlasTasksApplication.class)
+@SpringBootTest(classes = DemoTasksApplication.class)
 class ProjectIntegrationTest {
 
     @Container
@@ -48,7 +48,7 @@ class ProjectIntegrationTest {
 
     @Test
     void followsAnIssueFromCreationThroughAssignmentAndCommenting() {
-        ProjectEntity project = projectService.create("Atlas Tasks");
+        ProjectEntity project = projectService.create("Demo Tasks");
         var issue = issueService.create(project.getId(), "Map the indexing endpoint");
 
         assignmentService.assign(issue.getId(), "Mina");

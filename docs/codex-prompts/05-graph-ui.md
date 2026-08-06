@@ -1,6 +1,6 @@
-# Milestone 5 prompt — atlas UI
+# Milestone 5 prompt — graph UI
 
-Build the endpoint atlas in React Flow with ELK layout.
+Build the endpoint graph in React Flow with ELK layout.
 
 Add endpoint browsing, typed nodes, confidence-aware edges, pan/zoom/selection,
 depth and uncertainty controls, a source/evidence inspector, loading states, and

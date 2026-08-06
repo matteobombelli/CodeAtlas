@@ -2,7 +2,7 @@
 
 Harden Spring Boot Static Analysis v0.1 for a clean public demo.
 
-Seed a Compose-only self-analysis repository, grow Atlas Tasks into a compact
+Seed a Compose-only self-analysis repository, grow Demo Tasks into a compact
 manually verifiable target, add Playwright and Compose smoke coverage, publish
 architecture/confidence/pipeline/limitations documentation, add community and
 security files, and record measured—not invented—performance results.

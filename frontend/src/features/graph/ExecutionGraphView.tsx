@@ -159,7 +159,7 @@ export function ExecutionGraphView({
   })
 
   return (
-    <section className={styles.atlas} aria-label={`Execution graph for ${endpoint.path}`}>
+    <section className={styles.graph} aria-label={`Execution graph for ${endpoint.path}`}>
       <header>
         <div>
           <p>{blastRootId ? 'POTENTIAL BLAST RADIUS' : endpoint.httpMethod}</p>
