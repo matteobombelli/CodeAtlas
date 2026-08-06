@@ -42,7 +42,7 @@ function RunProgress({
     <div className={styles.progress} role="status">
       <span>{run.data.phase.replaceAll('_', ' ').toLowerCase()}</span>
       <strong>
-        {run.data.filesProcessed}/{run.data.filesDiscovered || '—'} files
+        {run.data.filesProcessed}/{run.data.filesDiscovered || '-'} files
       </strong>
       {run.data.errorSummary && <p>{run.data.errorSummary}</p>}
     </div>
@@ -122,7 +122,7 @@ function RepositoryCard({
       <div className={styles.actions}>
         <button disabled={index.isPending || !!run} onClick={() => index.mutate()}>
           {index.isPending
-            ? 'Queueing…'
+            ? 'Queueing'
             : repository.activeIndexRunId
               ? 'Rescan repository'
               : 'Index repository'}
@@ -145,7 +145,7 @@ function RepositoryCard({
       </div>
       {endpointsOpen && (
         <div className={styles.endpoints}>
-          {endpoints.isLoading && <p>Loading endpoints…</p>}
+          {endpoints.isLoading && <p>Loading endpoints</p>}
           {endpoints.data?.map((endpoint) => (
             <button
               key={endpoint.id}
@@ -207,8 +207,8 @@ export function RepositoryPanel() {
     <section className={styles.panel} aria-labelledby="repositories-title">
       <div className={styles.titleRow}>
         <div>
-          <p>Approved local roots only</p>
           <h3 id="repositories-title">Repositories</h3>
+          <p>Only paths mounted under the configured repository root can be read.</p>
         </div>
         <span>{repositories.data?.length ?? 0} registered</span>
       </div>
@@ -221,7 +221,7 @@ export function RepositoryPanel() {
             maxLength={200}
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Atlas Tasks"
+            placeholder="Billing service"
           />
         </label>
         <label>
@@ -230,11 +230,11 @@ export function RepositoryPanel() {
             required
             value={relativePath}
             onChange={(event) => setRelativePath(event.target.value)}
-            placeholder="code-atlas"
+            placeholder="billing-service"
           />
         </label>
         <button disabled={create.isPending} type="submit">
-          {create.isPending ? 'Adding…' : 'Add repository'}
+          {create.isPending ? 'Adding' : 'Add repository'}
         </button>
       </form>
 
@@ -253,11 +253,11 @@ export function RepositoryPanel() {
           />
         ))}
         {repositories.data?.length === 0 && (
-          <p className={styles.empty}>Register a mounted Git repository to begin.</p>
+          <p className={styles.empty}>Add a mounted Git repository to begin.</p>
         )}
       </div>
       {selected && (
-        <Suspense fallback={<p className={styles.empty}>Loading the atlas…</p>}>
+        <Suspense fallback={<p className={styles.empty}>Loading graph</p>}>
           <ExecutionGraphView
             repositoryId={selected.repositoryId}
             endpoint={selected.endpoint}

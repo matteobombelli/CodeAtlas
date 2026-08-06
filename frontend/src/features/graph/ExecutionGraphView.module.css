@@ -1,9 +1,9 @@
 .atlas {
   margin-top: 28px;
   overflow: hidden;
-  border: 1px solid #27374b;
-  border-radius: 18px;
-  background: #0b1421;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
 }
 
 .atlas > header {
@@ -12,7 +12,7 @@
   justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
-  border-bottom: 1px solid #27374b;
+  border-bottom: 1px solid var(--line);
 }
 
 .atlas header p,
@@ -23,10 +23,9 @@
 
 .atlas header p,
 .kind {
-  color: #76bfb0;
+  color: var(--accent);
   font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
+  font-weight: 700;
 }
 
 .atlas header h3 {
@@ -35,7 +34,7 @@
 }
 
 .atlas header span {
-  color: #829299;
+  color: var(--ink-muted);
   font-size: 0.76rem;
 }
 
@@ -43,7 +42,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #8c9ba1;
+  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 
@@ -56,26 +55,26 @@
 .graphControls button,
 .blastButton {
   padding: 8px 10px;
-  border: 1px solid #3b5566;
-  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
   background: transparent;
-  color: #a8b9b9;
+  color: var(--ink-soft);
   cursor: pointer;
   font-size: 0.72rem;
 }
 
 .blastButton {
   width: 100%;
-  border-color: #6a6489;
-  color: #c3b9e5;
+  border-color: var(--accent);
+  color: var(--accent-dark);
 }
 
 .atlas select {
   padding: 7px;
-  border: 1px solid #33475e;
-  border-radius: 7px;
-  background: #111d2d;
-  color: #edf3eb;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
 }
 
 .workspace {
@@ -87,12 +86,13 @@
 .canvas {
   position: relative;
   min-width: 0;
+  background: #f9f8f4;
 }
 
 .canvas :global(.react-flow__controls button) {
-  border-color: #33475e;
-  background: #111d2d;
-  fill: #bdc9c9;
+  border-color: var(--line);
+  background: var(--surface);
+  fill: var(--ink-soft);
 }
 
 .loading {
@@ -101,7 +101,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #91a0a7;
+  color: var(--ink-muted);
 }
 
 .nodeLabel {
@@ -112,7 +112,7 @@
 }
 
 .nodeLabel span {
-  color: #83979b;
+  color: var(--ink-muted);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -130,15 +130,15 @@
 }
 
 .nodeLabel small {
-  color: #7f9096;
+  color: var(--ink-muted);
   font-size: 0.6rem;
 }
 
 .inspector {
   overflow: auto;
   padding: 20px;
-  border-left: 1px solid #27374b;
-  background: #101a28;
+  border-left: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .inspector h4 {
@@ -149,7 +149,7 @@
 
 .subtitle {
   margin: 0;
-  color: #7f9096;
+  color: var(--ink-muted);
   font-size: 0.72rem;
   overflow-wrap: anywhere;
 }
@@ -162,24 +162,21 @@
 
 .inspector dt {
   margin-top: 7px;
-  color: #718289;
+  color: var(--ink-muted);
   font-size: 0.66rem;
-  text-transform: uppercase;
 }
 
 .inspector dd {
   margin: 0;
-  color: #c3cecb;
+  color: var(--ink-soft);
   font-size: 0.74rem;
   overflow-wrap: anywhere;
 }
 
 .inspector h5 {
   margin: 22px 0 8px;
-  color: #91a0a7;
+  color: var(--ink-muted);
   font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .evidence {
@@ -187,8 +184,9 @@
   gap: 4px;
   margin-bottom: 8px;
   padding: 10px;
-  border-radius: 9px;
-  background: #0a1420;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
 }
 
 .evidence strong,
@@ -202,31 +200,33 @@
 
 .evidence span,
 .evidence small {
-  color: #718289;
+  color: var(--ink-muted);
 }
 
 .evidence p {
-  color: #aebbb9;
+  color: var(--ink-soft);
 }
 
 .warning,
 .error {
   margin: 10px 20px 0;
   padding: 9px 11px;
-  border-radius: 8px;
-  background: rgb(145 112 71 / 20%);
-  color: #d8b384;
+  border: 1px solid #d8c49f;
+  border-radius: 4px;
+  background: #f7f0e4;
+  color: #775728;
   font-size: 0.75rem;
 }
 
 .error {
-  background: rgb(145 71 71 / 20%);
-  color: #e29a91;
+  border-color: #dfb7b1;
+  background: #f9ecea;
+  color: var(--danger);
 }
 
 .emptyInspector {
   margin-top: 40px;
-  color: #718289;
+  color: var(--ink-muted);
   font-size: 0.8rem;
   line-height: 1.6;
 }
@@ -236,7 +236,9 @@
   max-height: 320px;
   margin: 0;
   padding: 11px;
-  border-radius: 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff !important;
   font-size: 0.65rem;
   line-height: 1.55;
 }
@@ -245,13 +247,13 @@
   display: inline-block;
   width: 30px;
   margin-right: 9px;
-  color: #52616b;
+  color: var(--ink-muted);
   text-align: right;
   user-select: none;
 }
 
 .sourceError {
-  color: #e29a91;
+  color: var(--danger);
   font-size: 0.72rem;
 }
 
@@ -265,7 +267,7 @@
   }
 
   .inspector {
-    border-top: 1px solid #27374b;
+    border-top: 1px solid var(--line);
     border-left: 0;
   }
 }

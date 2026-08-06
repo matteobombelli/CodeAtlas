@@ -7,7 +7,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-test('shows backend and database health', async () => {
+test('shows API and database health', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
     const body = url.includes('/actuator/')
@@ -31,8 +31,8 @@ test('shows backend and database health', async () => {
     </QueryClientProvider>,
   )
 
-  expect(screen.getByText('Backend API')).toBeInTheDocument()
-  expect(screen.getByText('PostgreSQL')).toBeInTheDocument()
-  expect(await screen.findAllByText('UP')).toHaveLength(2)
-  expect(await screen.findByText('Register a mounted Git repository to begin.')).toBeInTheDocument()
+  expect(screen.getByText('API')).toBeInTheDocument()
+  expect(screen.getByText('Database')).toBeInTheDocument()
+  expect(await screen.findAllByText('online')).toHaveLength(2)
+  expect(await screen.findByText('Add a mounted Git repository to begin.')).toBeInTheDocument()
 })

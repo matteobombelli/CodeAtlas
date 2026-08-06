@@ -1,6 +1,6 @@
 .panel {
-  max-width: 850px;
-  margin: 72px auto 0;
+  padding-top: 36px;
+  border-top: 1px solid var(--line);
 }
 
 .titleRow,
@@ -21,21 +21,24 @@
 }
 
 .titleRow p {
-  color: #76bfb0;
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  max-width: 560px;
+  margin-top: 7px;
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .titleRow h3 {
-  margin-top: 4px;
-  font-size: 1.55rem;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
 }
 
 .titleRow > span,
 .count {
-  color: #91a0a7;
-  font-size: 0.8rem;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
 }
 
 .form {
@@ -43,43 +46,54 @@
   grid-template-columns: 1fr 1fr auto;
   align-items: end;
   gap: 12px;
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid #27374b;
-  border-radius: 16px;
-  background: rgb(17 29 45 / 82%);
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
 }
 
 .form label {
   display: grid;
   gap: 7px;
-  color: #9dacb2;
-  font-size: 0.78rem;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 600;
 }
 
 .form input {
   width: 100%;
   padding: 11px 12px;
-  border: 1px solid #32465d;
-  border-radius: 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
   outline: none;
-  background: #0c1726;
-  color: #edf3eb;
+  background: #fff;
+  color: var(--ink);
 }
 
 .form input:focus {
-  border-color: #6db5a7;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgb(47 102 132 / 12%);
 }
 
 .form button,
 .actions button {
   padding: 11px 15px;
   border: 0;
-  border-radius: 9px;
-  background: #6db5a7;
-  color: #071511;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
   cursor: pointer;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.form button:hover,
+.actions button:hover {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
 }
 
 .form button:disabled,
@@ -90,33 +104,35 @@
 
 .list {
   display: grid;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 0;
+  margin-top: 28px;
+  border-top: 1px solid var(--line);
 }
 
 .card {
-  padding: 20px;
-  border: 1px solid #27374b;
-  border-radius: 16px;
-  background: rgb(17 29 45 / 70%);
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .badge {
-  color: #76bfb0;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  color: var(--success);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
 }
 
 .card h4 {
   margin-top: 5px;
-  font-size: 1.1rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
 }
 
 .cardTop p {
   margin-top: 4px;
-  color: #819097;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
@@ -132,14 +148,13 @@
 }
 
 .card dt {
-  color: #6f8189;
+  color: var(--ink-muted);
   font-size: 0.7rem;
-  text-transform: uppercase;
 }
 
 .card dd {
   margin: 0;
-  color: #bac6c7;
+  color: var(--ink-soft);
   font-size: 0.82rem;
 }
 
@@ -148,9 +163,15 @@
 }
 
 .actions .secondary {
-  border: 1px solid #32465d;
+  border: 1px solid var(--line-strong);
   background: transparent;
-  color: #aebabc;
+  color: var(--ink-soft);
+}
+
+.actions .secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent-dark);
 }
 
 .endpoints {
@@ -158,7 +179,7 @@
   gap: 6px;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #27374b;
+  border-top: 1px solid var(--line);
 }
 
 .endpoints > button {
@@ -167,15 +188,16 @@
   gap: 2px 10px;
   padding: 11px;
   border: 1px solid transparent;
-  border-radius: 9px;
-  background: #0c1726;
-  color: #dfe8e4;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
   cursor: pointer;
   text-align: left;
 }
 
 .endpoints > button:hover {
-  border-color: #496a75;
+  border-color: var(--accent);
+  background: #fff;
 }
 
 .endpoints strong {
@@ -185,15 +207,15 @@
 .endpoints small {
   grid-column: 2;
   overflow: hidden;
-  color: #7f9096;
+  color: var(--ink-muted);
   text-overflow: ellipsis;
 }
 
 .method {
   grid-row: 1 / 3;
   align-self: center;
-  color: #76bfb0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--accent);
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -204,37 +226,38 @@
   gap: 4px 12px;
   margin-bottom: 16px;
   padding: 10px 12px;
-  border-radius: 9px;
-  background: #0c1726;
-  color: #91a0a7;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-muted);
+  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 
 .progress strong {
-  color: #c8d3d0;
+  color: var(--ink-soft);
 }
 
 .progress p {
   grid-column: 1 / -1;
-  color: #f0a487;
+  color: var(--danger);
 }
 
 .error {
   margin: 12px 0;
-  color: #f0a487;
+  color: var(--danger);
 }
 
 .summary {
   margin: 0 0 14px !important;
-  color: #7fae9f;
+  color: var(--success);
   font-size: 0.74rem;
 }
 
 .empty {
   padding: 28px;
-  border: 1px dashed #32465d;
-  border-radius: 14px;
-  color: #819097;
+  border: 1px dashed var(--line-strong);
+  border-radius: 4px;
+  color: var(--ink-muted);
   text-align: center;
 }
 

@@ -1,6 +1,27 @@
 :root {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color-scheme: dark;
+  --paper: #f6f4ee;
+  --surface: #fbfaf7;
+  --surface-muted: #efeee9;
+  --ink: #102a4a;
+  --ink-soft: #435a72;
+  --ink-muted: #728092;
+  --accent: #2f6684;
+  --accent-dark: #214b64;
+  --accent-wash: #e7eff2;
+  --line: #d8dad8;
+  --line-strong: #b8c1c6;
+  --success: #4d8067;
+  --warning: #aa7a34;
+  --danger: #a95248;
+  --method-get: #2f6f5d;
+  --method-post: #805a2d;
+  --method-put: #4e6590;
+  --method-delete: #9a4f47;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -13,4 +34,24 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--paper);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select {
+  outline-color: var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: #cbdde5;
+  color: var(--ink);
 }

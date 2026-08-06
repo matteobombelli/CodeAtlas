@@ -19,14 +19,16 @@ async function getHealth(): Promise<HealthResponse> {
 
 function Status({ label, status }: { label: string; status: string }) {
   const healthy = status === 'UP'
+  const checking = status === 'CHECKING'
   return (
-    <div className={styles.statusCard}>
-      <span className={healthy ? styles.up : styles.down} aria-hidden="true" />
-      <div>
-        <p>{label}</p>
-        <strong>{status}</strong>
-      </div>
-    </div>
+    <li className={styles.status}>
+      <span
+        className={healthy ? styles.up : checking ? styles.checking : styles.down}
+        aria-hidden="true"
+      />
+      <span>{label}</span>
+      <strong>{healthy ? 'online' : checking ? 'checking' : 'unavailable'}</strong>
+    </li>
   )
 }
 
@@ -44,32 +46,34 @@ export function App() {
     : (health.data?.components?.db?.status ?? 'CHECKING')
 
   return (
-    <main className={styles.shell}>
+    <div className={styles.app}>
       <header className={styles.header}>
-        <div className={styles.mark}>CA</div>
-        <div>
-          <p className={styles.eyebrow}>LOCAL CODE CARTOGRAPHY</p>
-          <h1>Code Atlas</h1>
+        <a className={styles.brand} href="/" aria-label="Code Atlas home">
+          <span className={styles.mark} aria-hidden="true">
+            <i />
+          </span>
+          Code Atlas
+        </a>
+        <div className={styles.headerMeta}>
+          <span>Local Spring code browser</span>
+          <ul aria-label="System status" className={styles.statusList}>
+            <Status label="API" status={backendStatus} />
+            <Status label="Database" status={databaseStatus} />
+          </ul>
         </div>
       </header>
 
-      <section className={styles.hero}>
-        <p className={styles.kicker}>Interactive execution maps</p>
-        <h2>Trace a Spring endpoint from request to data.</h2>
-        <p className={styles.copy}>
-          Explore calls, entities, tests, source evidence, and potential change
-          impact without executing the imported repository.
-        </p>
-      </section>
-
-      <section aria-label="System health" className={styles.health}>
-        <h3>System health</h3>
-        <div className={styles.statusGrid}>
-          <Status label="Backend API" status={backendStatus} />
-          <Status label="PostgreSQL" status={databaseStatus} />
-        </div>
-      </section>
-      <RepositoryPanel />
-    </main>
+      <main className={styles.main}>
+        <section className={styles.intro} aria-labelledby="page-title">
+          <p className={styles.kicker}>Spring Boot, from route to database</p>
+          <h1 id="page-title">Read the request path.</h1>
+          <p>
+            Choose an endpoint to see the methods, repositories, entities, tests,
+            and source lines connected to it. Imported code is read, never run.
+          </p>
+        </section>
+        <RepositoryPanel />
+      </main>
+    </div>
   )
 }

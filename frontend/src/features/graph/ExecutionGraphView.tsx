@@ -20,14 +20,14 @@ import {
 import styles from './ExecutionGraphView.module.css'
 
 const colors: Record<string, string> = {
-  ENDPOINT: '#76bfb0',
-  CONTROLLER: '#73a6d8',
-  SERVICE: '#9b8dd1',
-  REPOSITORY: '#e0a96d',
-  ENTITY: '#d77c74',
-  TEST: '#78b681',
-  EXTERNAL: '#75818b',
-  METHOD: '#7f98a4',
+  ENDPOINT: '#2f6684',
+  CONTROLLER: '#456f93',
+  SERVICE: '#6e6089',
+  REPOSITORY: '#8a6333',
+  ENTITY: '#94534d',
+  TEST: '#4d765b',
+  EXTERNAL: '#7a8085',
+  METHOD: '#596f7e',
 }
 
 async function layout(nodes: GraphNode[], edges: GraphEdge[]) {
@@ -55,6 +55,7 @@ async function layout(nodes: GraphNode[], edges: GraphEdge[]) {
       id: node.id,
       position: { x: positioned?.x ?? 0, y: positioned?.y ?? 0 },
       data: {
+        kind: node.kind,
         label: (
           <div className={styles.nodeLabel}>
             <span>{node.kind}</span>
@@ -67,10 +68,11 @@ async function layout(nodes: GraphNode[], edges: GraphEdge[]) {
         width: 210,
         minHeight: 72,
         border: `1px solid ${colors[node.kind] ?? colors.METHOD}`,
-        borderRadius: 12,
-        background: '#111d2d',
-        color: '#e9f0ed',
+        borderRadius: 4,
+        background: '#fbfaf7',
+        color: '#102a4a',
         padding: 11,
+        boxShadow: '0 2px 6px rgb(16 42 74 / 8%)',
       },
     }
   })
@@ -85,10 +87,10 @@ function flowEdges(edges: GraphEdge[]): Edge[] {
     markerEnd: { type: MarkerType.ArrowClosed },
     animated: false,
     style: {
-      stroke: edge.confidence >= 0.9 ? '#6f9e9b' : '#7b718e',
+      stroke: edge.confidence >= 0.9 ? '#6a8797' : '#81768b',
       strokeDasharray: edge.confidence < 0.9 ? '6 5' : undefined,
     },
-    labelStyle: { fill: '#91a0a7', fontSize: 10 },
+    labelStyle: { fill: '#607080', fontSize: 10 },
   }))
 }
 
@@ -162,7 +164,7 @@ export function ExecutionGraphView({
     <section className={styles.atlas} aria-label={`Execution graph for ${endpoint.path}`}>
       <header>
         <div>
-          <p>{blastRootId ? 'POTENTIAL BLAST RADIUS' : endpoint.httpMethod}</p>
+          <p>{blastRootId ? 'Incoming references' : endpoint.httpMethod}</p>
           <h3>{blastRootId ? selected?.label ?? 'Selected symbol' : endpoint.path}</h3>
           <span>
             {endpoint.controller}.{endpoint.method}
@@ -192,7 +194,7 @@ export function ExecutionGraphView({
 
       <div className={styles.workspace}>
         <div className={styles.canvas}>
-          {graph.isLoading && <div className={styles.loading}>Building execution map…</div>}
+          {graph.isLoading && <div className={styles.loading}>Laying out graph</div>}
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -201,11 +203,11 @@ export function ExecutionGraphView({
             maxZoom={1.8}
             onNodeClick={(_, node) => setSelectedId(node.id)}
           >
-            <Background color="#233347" gap={24} />
+            <Background color="#d8dad8" gap={24} />
             <Controls />
             <MiniMap
               nodeColor={(node) => colors[String(node.data.kind)] ?? '#6f8792'}
-              maskColor="rgb(5 11 19 / 70%)"
+              maskColor="rgb(246 244 238 / 72%)"
             />
           </ReactFlow>
         </div>
@@ -232,7 +234,7 @@ export function ExecutionGraphView({
                     setSelectedId(selected.id)
                   }}
                 >
-                  Show potential blast radius
+                  Trace incoming references
                 </button>
               )}
               <h5>Evidence</h5>
@@ -252,7 +254,7 @@ export function ExecutionGraphView({
               {source.isError && <p className={styles.sourceError}>{source.error.message}</p>}
               {source.data && (
                 <Highlight
-                  theme={themes.nightOwl}
+                  theme={themes.github}
                   code={source.data.content}
                   language="java"
                 >
@@ -285,13 +287,13 @@ export function ExecutionGraphView({
                   <dt>Contributors</dt>
                   <dd>{history.data.contributorCount}</dd>
                   <dt>Last commit</dt>
-                  <dd>{history.data.lastCommitSha?.slice(0, 10) ?? '—'}</dd>
+                  <dd>{history.data.lastCommitSha?.slice(0, 10) ?? '-'}</dd>
                 </dl>
               )}
             </>
           ) : (
             <p className={styles.emptyInspector}>
-              Select a node to inspect source evidence and confidence.
+              Select a node to read its source and relationship evidence.
             </p>
           )}
         </aside>

@@ -92,9 +92,7 @@ snapshot again so a changing working tree is never presented as current.
 
 See [architecture](docs/architecture.md), [graph model](docs/graph-model.md),
 [indexing pipeline](docs/indexing-pipeline.md), and
-[resolution confidence](docs/resolution-confidence.md). Independent
-[Codex milestone prompts](docs/codex-prompts/README.md) preserve the scoped
-implementation sequence.
+[resolution confidence](docs/resolution-confidence.md).
 
 ## Measured development smoke run
 
@@ -111,10 +109,10 @@ with repository shape, Git history, hardware, storage, and container runtime.
 
 ## Accuracy model
 
-- **Exact** — one project declaration matches the call/type evidence.
-- **Inferred** — a controlled Spring or naming convention supports the edge.
-- **Ambiguous** — more than one project target remains possible.
-- **Unresolved** — no supported target could be established.
+- **Exact:** one project declaration matches the call/type evidence.
+- **Inferred:** a controlled Spring or naming convention supports the edge.
+- **Ambiguous:** more than one project target remains possible.
+- **Unresolved:** no supported target could be established.
 
 Confidence is attached to individual relationships, not reported as a vague
 repository-wide “accuracy” score.
@@ -129,10 +127,10 @@ See [limitations](docs/limitations.md) for the full boundary.
 
 ## Repository layout
 
-- `backend` — Spring Boot API, indexing engine, graph queries, and Flyway schema
-- `frontend` — React, React Flow, ELK layout, and source/evidence inspector
-- `demo-app` — independent Atlas Tasks Spring Boot analysis target
-- `docs` — architecture, confidence model, demo script, and ADRs
+- `backend`: Spring Boot API, indexing engine, graph queries, and Flyway schema
+- `frontend`: React, React Flow, ELK layout, and source/evidence inspector
+- `demo-app`: independent Atlas Tasks Spring Boot analysis target
+- `docs`: architecture, confidence model, demo script, and ADRs
 
 ## License
 
