@@ -14,6 +14,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Spring Boot and Gradle majors are migrations, not upgrades, and a bot
+    # cannot judge when to take one. Patches and minors still come through.
+    ignore:
+      - dependency-name: org.springframework.boot
+        update-types: ["version-update:semver-major"]
+      - dependency-name: io.spring.dependency-management
+        update-types: ["version-update:semver-major"]
+      - dependency-name: gradle
+        update-types: ["version-update:semver-major"]
+      - dependency-name: gradle-wrapper
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
