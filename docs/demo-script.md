@@ -1,18 +1,19 @@
 # Demo script
 
 1. Run `docker compose up --build` and open <http://localhost:3000>.
-2. Wait for **Code Atlas · self-analysis** to become `READY`.
-3. Browse endpoints and select
-   `POST /api/repositories/{repositoryId}/index`.
-4. Follow `RepositoryController.index` into `IndexingService`, parsing,
-   relationship analysis, and persistence.
-5. Select an edge to read its evidence, confidence, and exact source excerpt.
-6. Select `IndexingService.execute` and show its potential blast radius.
-7. Inspect related tests and file-level Git history.
+2. The **Code Atlas source** repository opens when its initial index is ready.
+3. Follow `GET /api/repositories/{repositoryId}/search` from its controller into
+   the repository and search stores.
+4. Search for `IndexingService`. Confirm that methods and the source file appear
+   in separate result groups.
+5. Open `IndexingService.execute` to view its forward call graph, then trace its
+   incoming references.
+6. Open `IndexingService.java` to view the methods declared by the file.
+7. Select a node to read relationship evidence, confidence, source, and Git data.
 8. Make a harmless one-file Java edit and choose **Rescan repository**.
-9. Show the processed/total and added/modified/deleted summary.
+9. Review the processed, added, modified, and deleted file counts.
 
 For a compact domain example, browse the Atlas Tasks endpoints under
-`demo-app`, including issue assignment and comments. The two notification
-implementations deliberately expose polymorphism rather than pretending every
-call is exact.
+`demo-app`, including issue assignment and comments. Its two notification
+implementations provide a small polymorphic call site with more than one valid
+target.

@@ -34,7 +34,14 @@ fabricated project symbols.
 
 ## Projections
 
-Endpoint graphs use bounded breadth-first traversal. Potential blast radius uses
-the reverse direction and stops at depth and size limits. Defaults are depth 4,
-100 nodes, and 250 edges; API depth is capped at 8. Truncation is part of the
-response contract.
+Endpoint and method graphs use bounded forward breadth-first traversal. Reverse
+reference graphs walk callers and related tests. File graphs connect an indexed
+source file to the methods and constructors declared in it; these `DECLARES`
+edges are a projection and are not stored as execution relationships.
+
+The frontend starts at depth 3. The API default is depth 4, with limits of 100
+nodes and 250 edges. API depth is capped at 8. Truncation is part of the response
+contract.
+
+Search queries endpoints, methods, and files independently. A result opens the
+matching endpoint, a forward method graph, or a file declaration graph.

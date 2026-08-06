@@ -52,7 +52,7 @@ export type HttpEndpoint = {
 
 export type GraphNode = {
   id: string
-  resourceType: 'ENDPOINT' | 'SYMBOL' | 'EXTERNAL'
+  resourceType: 'ENDPOINT' | 'SYMBOL' | 'FILE' | 'EXTERNAL'
   kind: string
   label: string
   subtitle: string
@@ -99,6 +99,22 @@ export type GitFileHistory = {
   recentSubjects: string[]
 }
 
+export type CodeSearchResult = {
+  id: string
+  label: string
+  detail: string
+  sourcePath: string
+  startLine: number
+  endLine: number
+  httpMethod: string | null
+}
+
+export type CodeSearchResponse = {
+  endpoints: CodeSearchResult[]
+  methods: CodeSearchResult[]
+  files: CodeSearchResult[]
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -131,6 +147,14 @@ export const repositoryApi = {
     request<ExecutionGraph>(
       `/api/repositories/${repositoryId}/graphs/endpoint/${endpointId}?maxDepth=${maxDepth}`,
     ),
+  symbolGraph: (repositoryId: string, symbolId: string, maxDepth = 4) =>
+    request<ExecutionGraph>(
+      `/api/repositories/${repositoryId}/graphs/symbol/${symbolId}?maxDepth=${maxDepth}`,
+    ),
+  fileGraph: (repositoryId: string, fileId: string) =>
+    request<ExecutionGraph>(
+      `/api/repositories/${repositoryId}/graphs/file/${fileId}`,
+    ),
   blastRadius: (repositoryId: string, symbolId: string, maxDepth = 4) =>
     request<ExecutionGraph>(
       `/api/repositories/${repositoryId}/graphs/blast-radius/${symbolId}?maxDepth=${maxDepth}`,
@@ -154,4 +178,10 @@ export const repositoryApi = {
     request<GitFileHistory>(
       `/api/repositories/${repositoryId}/symbols/${symbolId}/history`,
     ),
+  search: (repositoryId: string, query: string) => {
+    const parameters = new URLSearchParams({ q: query })
+    return request<CodeSearchResponse>(
+      `/api/repositories/${repositoryId}/search?${parameters.toString()}`,
+    )
+  },
 }

@@ -212,9 +212,15 @@ export function RepositoryPanel() {
     const preferredEndpoint =
       demoEndpoints.data.find(
         (endpoint) =>
+          endpoint.httpMethod === 'GET' &&
+          endpoint.path === '/api/repositories/{repositoryId}/search',
+      ) ??
+      demoEndpoints.data.find(
+        (endpoint) =>
           endpoint.httpMethod === 'POST' &&
-          endpoint.path.includes('/repositories/{repositoryId}/index'),
-      ) ?? demoEndpoints.data[0]
+          endpoint.path === '/api/repositories/{repositoryId}/index',
+      ) ??
+      demoEndpoints.data[0]
     setSelected({ repositoryId: activeRepository.id, endpoint: preferredEndpoint })
   }, [activeRepository, demoEndpoints.data, selected?.repositoryId])
 
@@ -286,6 +292,7 @@ export function RepositoryPanel() {
           <ExecutionGraphView
             repositoryId={selected.repositoryId}
             endpoint={selected.endpoint}
+            endpoints={demoEndpoints.data ?? []}
           />
         </Suspense>
       )}

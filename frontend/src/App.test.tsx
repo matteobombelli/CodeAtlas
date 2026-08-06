@@ -70,6 +70,20 @@ test('opens the self-analysis repository without a user action', async () => {
     } else if (url === '/api/repositories/repository-1/http-endpoints') {
       body = [
         {
+          id: 'endpoint-search',
+          httpMethod: 'GET',
+          path: '/api/repositories/{repositoryId}/search',
+          controllerMethodId: 'symbol-search',
+          controller: 'dev.codeatlas.api.SearchController',
+          method: 'search',
+          signature: 'search(UUID,String)',
+          sourcePath: 'backend/src/main/java/dev/codeatlas/api/SearchController.java',
+          startLine: 25,
+          endLine: 31,
+          requestType: null,
+          responseType: 'CodeSearchResponse',
+        },
+        {
           id: 'endpoint-1',
           httpMethod: 'POST',
           path: '/api/repositories/{repositoryId}/index',
@@ -107,6 +121,6 @@ test('opens the self-analysis repository without a user action', async () => {
     await screen.findByRole('heading', { level: 2, name: 'Code Atlas source' }),
   ).toBeInTheDocument()
   expect(
-    await screen.findByText('Open graph: /api/repositories/{repositoryId}/index'),
+    await screen.findByText('Open graph: /api/repositories/{repositoryId}/search'),
   ).toBeInTheDocument()
 })

@@ -5,6 +5,7 @@ import dev.codeatlas.graph.GraphEdge.Evidence;
 import dev.codeatlas.graph.GraphNode.SourceLocation;
 import dev.codeatlas.shared.InvalidRequestException;
 import dev.codeatlas.shared.NotFoundException;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,13 +36,10 @@ public class GraphStore {
             int maxDepth,
             boolean includeUncertain,
             boolean includeExternal) {
-        if (maxDepth < 1 || maxDepth > 8) {
-            throw new InvalidRequestException("maxDepth must be between 1 and 8");
-        }
+        validateDepth(maxDepth);
         EndpointRoot root = endpointRoot(repositoryId, endpointId);
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
         List<GraphEdge> edges = new ArrayList<>();
-        List<GraphWarning> warnings = new ArrayList<>();
 
         String endpointNodeId = "endpoint:" + root.endpointId();
         nodes.put(endpointNodeId, new GraphNode(
@@ -53,7 +51,7 @@ public class GraphStore {
                 new SourceLocation(root.sourcePath(), root.startLine(), root.endLine()),
                 List.of("ENDPOINT")));
 
-        GraphNode controllerMethod = symbolNode(root.methodId());
+        GraphNode controllerMethod = symbolNode(repositoryId, root.methodId());
         nodes.put(controllerMethod.id(), controllerMethod);
         edges.add(new GraphEdge(
                 "handles:" + root.endpointId(),
@@ -65,87 +63,92 @@ public class GraphStore {
                 "SPRING_MAPPING",
                 new Evidence(root.sourcePath(), root.startLine(), 1, "Spring request mapping")));
 
-        ArrayDeque<Visit> queue = new ArrayDeque<>();
-        queue.add(new Visit(root.methodId(), 0));
-        boolean truncated = false;
-        String reason = null;
-        while (!queue.isEmpty()) {
-            Visit visit = queue.removeFirst();
-            if (visit.depth() >= maxDepth) {
-                continue;
-            }
-            for (StoredEdge edge : outgoing(repositoryId, visit.symbolId())) {
-                if (!TRAVERSABLE.contains(edge.kind())
-                        || (!includeUncertain && edge.confidence() < 0.70)) {
-                    continue;
-                }
-                if (edges.size() >= DEFAULT_EDGE_LIMIT) {
-                    truncated = true;
-                    reason = "EDGE_LIMIT";
-                    queue.clear();
-                    break;
-                }
-                GraphNode target = symbolNode(edge.targetId());
-                if (!nodes.containsKey(target.id()) && nodes.size() >= DEFAULT_NODE_LIMIT) {
-                    truncated = true;
-                    reason = "NODE_LIMIT";
-                    queue.clear();
-                    break;
-                }
-                boolean unseen = nodes.putIfAbsent(target.id(), target) == null;
-                edges.add(edge.toGraphEdge());
-                if (unseen) {
-                    queue.addLast(new Visit(edge.targetId(), visit.depth() + 1));
-                }
-            }
-            if (!includeExternal) {
-                continue;
-            }
-            for (StoredExternal reference : external(repositoryId, visit.symbolId())) {
-                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
-                    truncated = true;
-                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
-                    queue.clear();
-                    break;
-                }
-                String id = "external:" + reference.id();
-                nodes.putIfAbsent(id, new GraphNode(
-                        id, "EXTERNAL", "EXTERNAL", reference.displayName(),
-                        "External or unavailable dependency",
-                        new SourceLocation(reference.path(), reference.line(), reference.line()),
-                        List.of("EXTERNAL")));
-                edges.add(new GraphEdge(
-                        "external-edge:" + reference.id(),
-                        visit.symbolId().toString(),
-                        id,
-                        "CALLS",
-                        1.0,
-                        "EXACT_EXTERNAL",
-                        "EXTERNAL_REFERENCE",
-                        new Evidence(
-                                reference.path(), reference.line(), reference.column(),
-                                reference.displayName())));
-            }
-        }
-
-        int unresolvedCount = unresolvedCount(repositoryId, nodes.keySet());
-        if (unresolvedCount > 0) {
-            warnings.add(new GraphWarning(
-                    "UNRESOLVED_RELATIONSHIPS",
-                    unresolvedCount + " call expression(s) could not be resolved."));
-        }
-        if (truncated) {
-            warnings.add(new GraphWarning(
-                    "TRUNCATED",
-                    "Graph stopped at the configured " + reason.toLowerCase().replace('_', ' ') + "."));
-        }
+        ForwardTraversal traversal = traverseForward(
+                repositoryId,
+                root.methodId(),
+                maxDepth,
+                includeUncertain,
+                includeExternal,
+                nodes,
+                edges);
+        List<GraphWarning> warnings = forwardWarnings(repositoryId, nodes, traversal);
         return new ExecutionGraph(
                 endpointNodeId,
                 List.copyOf(nodes.values()),
                 edges,
                 warnings,
-                truncated,
-                reason);
+                traversal.truncated(),
+                traversal.reason());
+    }
+
+    public ExecutionGraph symbolGraph(
+            UUID repositoryId,
+            UUID symbolId,
+            int maxDepth,
+            boolean includeUncertain,
+            boolean includeExternal) {
+        validateDepth(maxDepth);
+        LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
+        List<GraphEdge> edges = new ArrayList<>();
+        GraphNode root = symbolNode(repositoryId, symbolId);
+        nodes.put(root.id(), root);
+
+        ForwardTraversal traversal = traverseForward(
+                repositoryId,
+                symbolId,
+                maxDepth,
+                includeUncertain,
+                includeExternal,
+                nodes,
+                edges);
+        List<GraphWarning> warnings = forwardWarnings(repositoryId, nodes, traversal);
+        return new ExecutionGraph(
+                root.id(),
+                List.copyOf(nodes.values()),
+                edges,
+                warnings,
+                traversal.truncated(),
+                traversal.reason());
+    }
+
+    public ExecutionGraph fileGraph(UUID repositoryId, UUID fileId) {
+        FileRoot file = fileRoot(repositoryId, fileId);
+        String rootId = "file:" + file.id();
+        LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
+        List<GraphEdge> edges = new ArrayList<>();
+        String fileName = Path.of(file.path()).getFileName().toString();
+        nodes.put(rootId, new GraphNode(
+                rootId,
+                "FILE",
+                "FILE",
+                fileName,
+                file.path(),
+                new SourceLocation(file.path(), 1, file.lineCount()),
+                List.of("FILE")));
+
+        for (UUID symbolId : symbolsForFile(repositoryId, fileId)) {
+            GraphNode symbol = symbolNode(repositoryId, symbolId);
+            nodes.put(symbol.id(), symbol);
+            edges.add(new GraphEdge(
+                    "declares:" + file.id() + ":" + symbolId,
+                    rootId,
+                    symbol.id(),
+                    "DECLARES",
+                    1.0,
+                    "EXACT",
+                    "SOURCE_DECLARATION",
+                    new Evidence(
+                            file.path(), symbol.source().startLine(), 1,
+                            "Method declared in " + fileName)));
+        }
+
+        return new ExecutionGraph(
+                rootId,
+                List.copyOf(nodes.values()),
+                List.copyOf(edges),
+                List.of(),
+                false,
+                null);
     }
 
     public ExecutionGraph blastRadius(
@@ -159,7 +162,7 @@ public class GraphStore {
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
         List<GraphEdge> edges = new ArrayList<>();
         List<GraphWarning> warnings = new ArrayList<>();
-        GraphNode root = symbolNode(symbolId);
+        GraphNode root = symbolNode(repositoryId, symbolId);
         nodes.put(root.id(), root);
         for (EndpointRoot endpoint : endpointsFor(repositoryId, symbolId)) {
             String endpointNodeId = "endpoint:" + endpoint.endpointId();
@@ -191,7 +194,7 @@ public class GraphStore {
 
         for (StoredEdge edge : outgoing(repositoryId, symbolId)) {
             if (Set.of("READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY").contains(edge.kind())) {
-                GraphNode target = symbolNode(edge.targetId());
+                GraphNode target = symbolNode(repositoryId, edge.targetId());
                 nodes.putIfAbsent(target.id(), target);
                 edges.add(edge.toGraphEdge());
             }
@@ -213,7 +216,7 @@ public class GraphStore {
                     queue.clear();
                     break;
                 }
-                GraphNode source = symbolNode(edge.sourceId());
+                GraphNode source = symbolNode(repositoryId, edge.sourceId());
                 boolean unseen = nodes.putIfAbsent(source.id(), source) == null;
                 edges.add(edge.toGraphEdge());
                 for (EndpointRoot endpoint : endpointsFor(repositoryId, edge.sourceId())) {
@@ -261,6 +264,137 @@ public class GraphStore {
                 warnings,
                 truncated,
                 reason);
+    }
+
+    private ForwardTraversal traverseForward(
+            UUID repositoryId,
+            UUID rootSymbolId,
+            int maxDepth,
+            boolean includeUncertain,
+            boolean includeExternal,
+            LinkedHashMap<String, GraphNode> nodes,
+            List<GraphEdge> edges) {
+        ArrayDeque<Visit> queue = new ArrayDeque<>();
+        queue.add(new Visit(rootSymbolId, 0));
+        boolean truncated = false;
+        String reason = null;
+        while (!queue.isEmpty()) {
+            Visit visit = queue.removeFirst();
+            if (visit.depth() >= maxDepth) {
+                continue;
+            }
+            for (StoredEdge edge : outgoing(repositoryId, visit.symbolId())) {
+                if (!TRAVERSABLE.contains(edge.kind())
+                        || (!includeUncertain && edge.confidence() < 0.70)) {
+                    continue;
+                }
+                if (edges.size() >= DEFAULT_EDGE_LIMIT) {
+                    truncated = true;
+                    reason = "EDGE_LIMIT";
+                    queue.clear();
+                    break;
+                }
+                GraphNode target = symbolNode(repositoryId, edge.targetId());
+                if (!nodes.containsKey(target.id()) && nodes.size() >= DEFAULT_NODE_LIMIT) {
+                    truncated = true;
+                    reason = "NODE_LIMIT";
+                    queue.clear();
+                    break;
+                }
+                boolean unseen = nodes.putIfAbsent(target.id(), target) == null;
+                edges.add(edge.toGraphEdge());
+                if (unseen) {
+                    queue.addLast(new Visit(edge.targetId(), visit.depth() + 1));
+                }
+            }
+            if (!includeExternal) {
+                continue;
+            }
+            for (StoredExternal reference : external(repositoryId, visit.symbolId())) {
+                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                    truncated = true;
+                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    queue.clear();
+                    break;
+                }
+                String id = "external:" + reference.id();
+                nodes.putIfAbsent(id, new GraphNode(
+                        id, "EXTERNAL", "EXTERNAL", reference.displayName(),
+                        "External or unavailable dependency",
+                        new SourceLocation(reference.path(), reference.line(), reference.line()),
+                        List.of("EXTERNAL")));
+                edges.add(new GraphEdge(
+                        "external-edge:" + reference.id(),
+                        visit.symbolId().toString(),
+                        id,
+                        "CALLS",
+                        1.0,
+                        "EXACT_EXTERNAL",
+                        "EXTERNAL_REFERENCE",
+                        new Evidence(
+                                reference.path(), reference.line(), reference.column(),
+                                reference.displayName())));
+            }
+        }
+        return new ForwardTraversal(truncated, reason);
+    }
+
+    private List<GraphWarning> forwardWarnings(
+            UUID repositoryId,
+            Map<String, GraphNode> nodes,
+            ForwardTraversal traversal) {
+        List<GraphWarning> warnings = new ArrayList<>();
+        int unresolvedCount = unresolvedCount(repositoryId, nodes.keySet());
+        if (unresolvedCount > 0) {
+            warnings.add(new GraphWarning(
+                    "UNRESOLVED_RELATIONSHIPS",
+                    unresolvedCount + " call expression(s) could not be resolved."));
+        }
+        if (traversal.truncated()) {
+            warnings.add(new GraphWarning(
+                    "TRUNCATED",
+                    "Graph stopped at the configured "
+                            + traversal.reason().toLowerCase().replace('_', ' ') + "."));
+        }
+        return List.copyOf(warnings);
+    }
+
+    private void validateDepth(int maxDepth) {
+        if (maxDepth < 1 || maxDepth > 8) {
+            throw new InvalidRequestException("maxDepth must be between 1 and 8");
+        }
+    }
+
+    private FileRoot fileRoot(UUID repositoryId, UUID fileId) {
+        List<FileRoot> values = jdbc.query("""
+                SELECT id, relative_path, line_count
+                FROM source_files
+                WHERE repository_id = :repositoryId AND id = :fileId
+                """, Map.of("repositoryId", repositoryId, "fileId", fileId),
+                (row, number) -> new FileRoot(
+                        row.getObject("id", UUID.class),
+                        row.getString("relative_path"),
+                        row.getInt("line_count")));
+        if (values.isEmpty()) {
+            throw new NotFoundException("Source file " + fileId + " does not exist");
+        }
+        return values.getFirst();
+    }
+
+    private List<UUID> symbolsForFile(UUID repositoryId, UUID fileId) {
+        return jdbc.query("""
+                SELECT id
+                FROM code_symbols
+                WHERE repository_id = :repositoryId
+                  AND source_file_id = :fileId
+                  AND kind IN ('METHOD', 'CONSTRUCTOR')
+                ORDER BY start_line
+                LIMIT :limit
+                """, Map.of(
+                        "repositoryId", repositoryId,
+                        "fileId", fileId,
+                        "limit", DEFAULT_NODE_LIMIT - 1),
+                (row, number) -> row.getObject("id", UUID.class));
     }
 
     private EndpointRoot endpointRoot(UUID repositoryId, UUID endpointId) {
@@ -314,7 +448,7 @@ public class GraphStore {
                         row.getInt("end_line")));
     }
 
-    private GraphNode symbolNode(UUID symbolId) {
+    private GraphNode symbolNode(UUID repositoryId, UUID symbolId) {
         List<GraphNode> values = jdbc.query("""
                 SELECT s.id, s.kind, s.simple_name, s.qualified_name, s.signature,
                        s.start_line, s.end_line, sf.relative_path,
@@ -323,9 +457,11 @@ public class GraphStore {
                 JOIN source_files sf ON sf.id = s.source_file_id
                 LEFT JOIN code_symbol_roles sr
                     ON sr.symbol_id = COALESCE(s.parent_symbol_id, s.id)
-                WHERE s.id = :symbolId
+                WHERE s.repository_id = :repositoryId AND s.id = :symbolId
                 GROUP BY s.id, sf.relative_path
-                """, Map.of("symbolId", symbolId), (row, number) -> {
+                """, Map.of(
+                        "repositoryId", repositoryId,
+                        "symbolId", symbolId), (row, number) -> {
             String rolesText = row.getString("roles");
             List<String> roles = rolesText.isBlank() ? List.of() : List.of(rolesText.split(","));
             String role = preferredRole(roles, row.getString("kind"));
@@ -433,6 +569,12 @@ public class GraphStore {
     }
 
     private record Visit(UUID symbolId, int depth) {
+    }
+
+    private record ForwardTraversal(boolean truncated, String reason) {
+    }
+
+    private record FileRoot(UUID id, String path, int lineCount) {
     }
 
     private record EndpointRoot(

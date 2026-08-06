@@ -1,12 +1,12 @@
 # Code Atlas
 
-Interactive execution maps and change-impact analysis for Spring Boot repositories.
+Static request-path and change-impact analysis for Spring Boot repositories.
 
-Code Atlas is a local-first static-analysis tool. Select a REST endpoint to see
-the controller, application calls, Spring Data access, JPA entities, tests,
-source evidence, Git history, and potential blast radius behind it. Every edge
-includes its confidence and resolution evidence; ambiguity is retained as a
-diagnostic instead of being silently resolved.
+Code Atlas reads a local repository and connects REST endpoints to controller
+methods, application calls, Spring Data access, JPA entities, tests, and source
+evidence. Search covers endpoints, methods, and indexed Java files. Each edge
+records its confidence and resolution evidence. Ambiguous calls stay visible as
+diagnostics.
 
 ## What it reveals
 
@@ -18,10 +18,11 @@ For an indexed endpoint, Code Atlas can show:
 - directly related tests and reverse change-impact paths;
 - exact source ranges and the expression supporting each edge;
 - file-level commit history, churn, authors, and recent subjects;
-- unresolved, ambiguous, and external calls.
+- unresolved, ambiguous, and external calls;
+- grouped search for endpoints, methods, and files.
 
-The graph is deliberately bounded. Its default view prioritizes useful domain
-behavior over framework plumbing and never tries to render the entire repository.
+Graph queries have explicit depth, node, and edge limits. The default view omits
+framework plumbing and does not try to render an entire repository at once.
 
 ## Run the self-analysis demo
 
@@ -34,7 +35,7 @@ docker compose up --build
 Open <http://localhost:3000>. On a clean database, Compose mounts this checkout
 read-only, registers it as **Code Atlas source**, and indexes it in the
 background. The frontend opens the self-analysis graph as soon as the index is
-ready, starting at `POST /api/repositories/{repositoryId}/index`.
+ready, starting at `GET /api/repositories/{repositoryId}/search`.
 
 The independent `demo-app` Gradle project is **Atlas Tasks**, a small Spring Boot
 issue tracker containing projects, issues, assignment, notifications, comments,
