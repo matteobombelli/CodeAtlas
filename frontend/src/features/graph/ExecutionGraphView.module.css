@@ -1,8 +1,9 @@
 .atlas {
-  margin-top: 24px;
+  display: grid;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--surface);
 }
 
@@ -60,6 +61,24 @@
   white-space: nowrap;
 }
 
+.emptyTarget {
+  display: grid;
+  gap: 3px;
+}
+
+.emptyTarget span {
+  color: var(--ink-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+.emptyTarget strong {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
 .graphControls {
   display: flex;
   flex: none;
@@ -85,6 +104,42 @@
   color: var(--accent-dark);
 }
 
+.viewSwitch {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+}
+
+.viewSwitch button {
+  display: grid;
+  min-width: 116px;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+}
+
+.viewSwitch button + button {
+  border-left: 1px solid var(--line-strong);
+}
+
+.viewSwitch button small {
+  color: var(--ink-muted);
+  font-size: 0.58rem;
+  font-weight: 400;
+}
+
+.viewSwitch button.activeView {
+  background: var(--accent-wash);
+  color: var(--accent-dark);
+}
+
+.viewSwitch button.activeView small {
+  color: var(--accent-dark);
+}
+
 .graphControls label {
   display: flex;
   align-items: center;
@@ -103,17 +158,49 @@
 
 .explorerGrid {
   display: grid;
-  grid-template-columns: 274px minmax(0, 1fr);
-  min-height: 720px;
+  grid-template-columns: var(--navigator-width, 274px) 6px minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .navigator {
   display: grid;
   min-width: 0;
-  max-height: 760px;
+  min-height: 0;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border-right: 1px solid var(--line);
   background: #f4f3ef;
+}
+
+.resizeHandle {
+  position: relative;
+  z-index: 8;
+  min-width: 0;
+  background: var(--surface);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizeHandle::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--line);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle:focus-visible::after,
+.resizeHandle:active::after {
+  width: 2px;
+  background: var(--accent);
+}
+
+.resizeHandle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .searchBox {
@@ -146,6 +233,15 @@
   min-height: 0;
   overflow: auto;
   padding: 8px 0 18px;
+}
+
+.navigatorIntro {
+  margin: 0 14px 9px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: 0.66rem;
+  line-height: 1.5;
 }
 
 .searchResults {
@@ -230,6 +326,11 @@
   color: var(--method-delete);
 }
 
+.resultLabel b[data-kind] {
+  color: var(--accent);
+  font-size: 0.54rem;
+}
+
 .resultLabel strong {
   overflow: hidden;
   font-family: var(--font-mono);
@@ -248,7 +349,12 @@
   white-space: nowrap;
 }
 
+.pathTail {
+  text-align: left;
+}
+
 .resultGroup p,
+.endpointList p,
 .navMessage,
 .navError {
   padding: 5px 14px 10px;
@@ -270,42 +376,39 @@
 }
 
 .graphArea {
+  position: relative;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: #f9f8f4;
 }
 
+.graphMessages {
+  position: absolute;
+  z-index: 6;
+  top: 12px;
+  left: 12px;
+  width: min(520px, calc(100% - 24px));
+  pointer-events: none;
+}
+
+.graphMessages:empty {
+  display: none;
+}
+
 .workspace {
+  position: absolute;
+  inset: 0;
   display: grid;
-  min-height: 720px;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 6px var(--inspector-width, 320px);
 }
 
 .canvas {
   position: relative;
   min-width: 0;
+  min-height: 0;
   background: #f9f8f4;
-}
-
-.canvas :global(.react-flow__controls) {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  box-shadow: none;
-}
-
-.canvas :global(.react-flow__controls button) {
-  border-color: var(--line);
-  background: var(--surface);
-  fill: var(--ink-soft);
-}
-
-.canvas :global(.react-flow__minimap) {
-  width: 142px;
-  height: 96px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
-  box-shadow: none;
 }
 
 .loading {
@@ -317,6 +420,29 @@
   background: rgb(249 248 244 / 72%);
   color: var(--ink-muted);
   font-size: 0.78rem;
+}
+
+.emptyCanvas {
+  display: grid;
+  height: 100%;
+  place-content: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.emptyCanvas strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.emptyCanvas p {
+  max-width: 420px;
+  margin: 7px 0 0;
+  color: var(--ink-muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
 }
 
 .graphNode {
@@ -418,9 +544,8 @@
 
 .inspector {
   overflow: auto;
-  max-height: 760px;
+  min-height: 0;
   padding: 18px;
-  border-left: 1px solid var(--line);
   background: var(--surface);
 }
 
@@ -521,7 +646,7 @@
 
 .warning,
 .error {
-  margin: 10px 12px 0;
+  margin: 0 0 8px;
   padding: 8px 10px;
   border: 1px solid #d8c49f;
   border-radius: 3px;
@@ -573,17 +698,11 @@
   font-size: 0.7rem;
 }
 
-@media (max-width: 1120px) {
-  .explorerGrid {
-    grid-template-columns: 238px minmax(0, 1fr);
-  }
-
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) 282px;
-  }
-}
-
 @media (max-width: 900px) {
+  .atlas {
+    overflow: auto;
+  }
+
   .graphHeader {
     align-items: stretch;
     flex-direction: column;
@@ -594,6 +713,9 @@
   }
 
   .explorerGrid {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
     grid-template-columns: 1fr;
   }
 
@@ -603,7 +725,13 @@
     border-bottom: 1px solid var(--line);
   }
 
+  .resizeHandle {
+    display: none;
+  }
+
   .workspace {
+    position: static;
+    height: auto;
     grid-template-columns: 1fr;
   }
 

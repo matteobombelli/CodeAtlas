@@ -1,11 +1,17 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Highlight, themes } from 'prism-react-renderer'
 import {
   Background,
-  Controls,
   MarkerType,
-  MiniMap,
   ReactFlow,
   type Edge,
   type Node,
@@ -31,6 +37,7 @@ const nodeColors: Record<string, string> = {
   TEST: '#4d765b',
   EXTERNAL: '#7a8085',
   FILE: '#426b66',
+  FUNCTION: '#596f7e',
   METHOD: '#596f7e',
   CONSTRUCTOR: '#596f7e',
 }
@@ -41,6 +48,10 @@ function fileName(path: string) {
 
 function humanize(value: string) {
   return value.toLowerCase().replaceAll('_', ' ')
+}
+
+function clampPanelWidth(width: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, width))
 }
 
 async function layout(nodes: GraphNode[], edges: GraphEdge[]) {
@@ -113,7 +124,7 @@ function targetGraph(
   target: GraphTarget,
   depth: number,
 ) {
-  if (target.category === 'METHOD') {
+  if (target.category === 'CALLABLE') {
     return repositoryApi.symbolGraph(repositoryId, target.id, depth)
   }
   if (target.category === 'FILE') {
@@ -123,6 +134,13 @@ function targetGraph(
 }
 
 function TargetPath({ target }: { target: GraphTarget }) {
+  const callableKind =
+    target.kind === 'CONSTRUCTOR'
+      ? 'Constructor'
+      : target.kind === 'FUNCTION'
+        ? 'Function'
+        : 'Function / method'
+
   return (
     <ol className={styles.targetPath} aria-label="Current selection">
       {target.category === 'ENDPOINT' && (
@@ -135,13 +153,18 @@ function TargetPath({ target }: { target: GraphTarget }) {
       )}
       {target.category !== 'FILE' && (
         <li>
-          <span>Method</span>
+          <span>{target.category === 'CALLABLE' ? callableKind : 'Method'}</span>
           <strong>{target.detail}</strong>
         </li>
       )}
       <li>
         <span>File</span>
-        <strong>{target.category === 'FILE' ? target.label : fileName(target.sourcePath)}</strong>
+        <strong
+          className={target.category === 'FILE' ? styles.pathTail : undefined}
+          title={target.sourcePath}
+        >
+          {target.category === 'FILE' ? target.label : fileName(target.sourcePath)}
+        </strong>
       </li>
     </ol>
   )
@@ -153,32 +176,46 @@ export function ExecutionGraphView({
   endpoints,
 }: {
   repositoryId: string
-  endpoint: HttpEndpoint
+  endpoint: HttpEndpoint | null
   endpoints: HttpEndpoint[]
 }) {
   const [depth, setDepth] = useState(3)
   const [nodes, setNodes] = useState<Node[]>([])
   const [flow, setFlow] = useState<ReactFlowInstance | null>(null)
-  const [activeTarget, setActiveTarget] = useState<GraphTarget>(() =>
-    endpointTarget(endpoint),
+  const [activeTarget, setActiveTarget] = useState<GraphTarget | null>(() =>
+    endpoint ? endpointTarget(endpoint) : null,
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [incomingRootId, setIncomingRootId] = useState<string | null>(null)
+  const [navigatorWidth, setNavigatorWidth] = useState(274)
+  const [inspectorWidth, setInspectorWidth] = useState(320)
+  const resize = useRef<{
+    panel: 'navigator' | 'inspector'
+    pointerId: number
+    startX: number
+    startWidth: number
+  } | null>(null)
 
   useEffect(() => {
-    setActiveTarget(endpointTarget(endpoint))
+    setActiveTarget(endpoint ? endpointTarget(endpoint) : null)
     setIncomingRootId(null)
   }, [endpoint])
+
+  useEffect(() => {
+    setNodes([])
+    setSelectedId(null)
+  }, [activeTarget?.category, activeTarget?.id, depth, incomingRootId])
 
   const selectedGraph = useQuery({
     queryKey: [
       'code-graph',
       repositoryId,
-      activeTarget.category,
-      activeTarget.id,
+      activeTarget?.category,
+      activeTarget?.id,
       depth,
     ],
-    queryFn: () => targetGraph(repositoryId, activeTarget, depth),
+    queryFn: () => targetGraph(repositoryId, activeTarget!, depth),
+    enabled: activeTarget !== null && incomingRootId === null,
   })
   const incomingGraph = useQuery({
     queryKey: ['incoming-graph', repositoryId, incomingRootId, depth],
@@ -235,29 +272,119 @@ export function ExecutionGraphView({
     enabled: selected !== undefined && selected.resourceType !== 'EXTERNAL',
     retry: false,
   })
-  const history = useQuery({
-    queryKey: ['symbol-history', repositoryId, selected?.id],
-    queryFn: () => repositoryApi.history(repositoryId, selected!.id),
-    enabled: selected?.resourceType === 'SYMBOL',
-  })
-
   function selectTarget(target: GraphTarget) {
     setActiveTarget(target)
-    setIncomingRootId(null)
+    setIncomingRootId(target.category === 'CALLABLE' ? target.symbolId : null)
     setSelectedId(null)
   }
 
+  function inspectImpact(node: GraphNode) {
+    setActiveTarget({
+      category: 'CALLABLE',
+      id: node.id,
+      symbolId: node.id,
+      kind: node.kind,
+      label: node.label,
+      detail: node.subtitle,
+      sourcePath: node.source.path,
+      startLine: node.source.startLine,
+      endLine: node.source.endLine,
+      httpMethod: null,
+    })
+    setIncomingRootId(node.id)
+    setSelectedId(null)
+  }
+
+  function fitCurrentGraph() {
+    requestAnimationFrame(() => {
+      void flow?.fitView({ padding: 0.16, duration: 160 })
+    })
+  }
+
+  function startPanelResize(
+    panel: 'navigator' | 'inspector',
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    resize.current = {
+      panel,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: panel === 'navigator' ? navigatorWidth : inspectorWidth,
+    }
+  }
+
+  function movePanelResize(event: ReactPointerEvent<HTMLDivElement>) {
+    const active = resize.current
+    if (!active || active.pointerId !== event.pointerId) return
+    const movement = event.clientX - active.startX
+    if (active.panel === 'navigator') {
+      setNavigatorWidth(clampPanelWidth(active.startWidth + movement, 220, 480))
+    } else {
+      setInspectorWidth(clampPanelWidth(active.startWidth - movement, 260, 520))
+    }
+  }
+
+  function stopPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    resize.current = null
+    fitCurrentGraph()
+  }
+
+  function resizePanelWithKeyboard(
+    panel: 'navigator' | 'inspector',
+    event: ReactKeyboardEvent<HTMLDivElement>,
+  ) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const movement = event.key === 'ArrowRight' ? 16 : -16
+    if (panel === 'navigator') {
+      setNavigatorWidth((width) => clampPanelWidth(width + movement, 220, 480))
+    } else {
+      setInspectorWidth((width) => clampPanelWidth(width - movement, 260, 520))
+    }
+    fitCurrentGraph()
+  }
+
   return (
-    <section className={styles.atlas} aria-label={`Code graph for ${activeTarget.label}`}>
+    <section
+      className={styles.atlas}
+      aria-label={activeTarget ? `Code graph for ${activeTarget.label}` : 'Code graph'}
+    >
       <header className={styles.graphHeader}>
-        <TargetPath target={activeTarget} />
+        {activeTarget ? (
+          <TargetPath target={activeTarget} />
+        ) : (
+          <div className={styles.emptyTarget}>
+            <span>Code explorer</span>
+            <strong>Search for the code you are changing</strong>
+          </div>
+        )}
         <div className={styles.graphControls}>
-          {incomingRootId && (
-            <button type="button" onClick={() => setIncomingRootId(null)}>
-              Back to forward graph
-            </button>
+          {activeTarget?.symbolId && (
+            <div className={styles.viewSwitch} aria-label="Graph view">
+              <button
+                className={!incomingRootId ? styles.activeView : undefined}
+                type="button"
+                onClick={() => setIncomingRootId(null)}
+              >
+                Dependencies
+                <small>what it calls</small>
+              </button>
+              <button
+                className={incomingRootId ? styles.activeView : undefined}
+                type="button"
+                onClick={() => setIncomingRootId(activeTarget.symbolId)}
+              >
+                Blast radius
+                <small>what may depend on it</small>
+              </button>
+            </div>
           )}
-          {activeTarget.category !== 'FILE' && (
+          {activeTarget && activeTarget.category !== 'FILE' && (
             <label>
               Depth
               <select
@@ -273,50 +400,102 @@ export function ExecutionGraphView({
         </div>
       </header>
 
-      <div className={styles.explorerGrid}>
+      <div
+        className={styles.explorerGrid}
+        style={{ '--navigator-width': `${navigatorWidth}px` } as CSSProperties}
+      >
         <CodeNavigator
           repositoryId={repositoryId}
           endpoints={endpoints}
           active={activeTarget}
           onSelect={selectTarget}
         />
+        <div
+          className={styles.resizeHandle}
+          role="separator"
+          aria-label="Resize code browser"
+          aria-orientation="vertical"
+          aria-valuemin={220}
+          aria-valuemax={480}
+          aria-valuenow={navigatorWidth}
+          tabIndex={0}
+          onDoubleClick={() => {
+            setNavigatorWidth(274)
+            fitCurrentGraph()
+          }}
+          onKeyDown={(event) => resizePanelWithKeyboard('navigator', event)}
+          onPointerDown={(event) => startPanelResize('navigator', event)}
+          onPointerMove={movePanelResize}
+          onPointerUp={stopPanelResize}
+          onPointerCancel={stopPanelResize}
+        />
 
         <div className={styles.graphArea}>
-          {graph.isError && <p className={styles.error}>{graph.error.message}</p>}
-          {graph.data?.warnings.map((warning) => (
-            <p className={styles.warning} key={warning.type}>
-              {warning.message}
-            </p>
-          ))}
+          <div className={styles.graphMessages}>
+            {graph.isError && <p className={styles.error}>{graph.error.message}</p>}
+            {graph.data?.warnings.map((warning) => (
+              <p className={styles.warning} key={warning.type}>
+                {warning.message}
+              </p>
+            ))}
+          </div>
 
-          <div className={styles.workspace}>
+          <div
+            className={styles.workspace}
+            style={{ '--inspector-width': `${inspectorWidth}px` } as CSSProperties}
+          >
             <div className={styles.canvas}>
-              {graph.isLoading && <div className={styles.loading}>Laying out graph</div>}
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                fitView
-                fitViewOptions={{ padding: 0.16 }}
-                minZoom={0.25}
-                maxZoom={1.65}
-                nodesConnectable={false}
-                onInit={setFlow}
-                onNodeClick={(_, node) => setSelectedId(node.id)}
-              >
-                <Background color="#d8dad8" gap={24} size={1} />
-                <Controls showInteractive={false} />
-                <MiniMap
-                  nodeColor={(node) => nodeColors[String(node.data.kind)] ?? '#6f8792'}
-                  maskColor="rgb(246 244 238 / 76%)"
-                  pannable
-                  zoomable
-                />
-              </ReactFlow>
-              <div className={styles.edgeLegend} aria-label="Relationship confidence">
-                <span><i /> exact or high confidence</span>
-                <span><i className={styles.dashedLine} /> inferred</span>
-              </div>
+              {!activeTarget ? (
+                <div className={styles.emptyCanvas}>
+                  <strong>Start with a function, method, endpoint, or file.</strong>
+                  <p>
+                    Search the current index to inspect dependencies and potential
+                    change impact.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {graph.isLoading && <div className={styles.loading}>Laying out graph</div>}
+                  <ReactFlow
+                    nodes={nodes}
+                    edges={edges}
+                    fitView
+                    fitViewOptions={{ padding: 0.16 }}
+                    minZoom={0.25}
+                    maxZoom={1.65}
+                    nodesConnectable={false}
+                    onInit={setFlow}
+                    onNodeClick={(_, node) => setSelectedId(node.id)}
+                  >
+                    <Background color="#d8dad8" gap={24} size={1} />
+                  </ReactFlow>
+                  <div className={styles.edgeLegend} aria-label="Relationship confidence">
+                    <span><i /> exact or high confidence</span>
+                    <span><i className={styles.dashedLine} /> inferred</span>
+                  </div>
+                </>
+              )}
             </div>
+
+            <div
+              className={styles.resizeHandle}
+              role="separator"
+              aria-label="Resize selection details"
+              aria-orientation="vertical"
+              aria-valuemin={260}
+              aria-valuemax={520}
+              aria-valuenow={inspectorWidth}
+              tabIndex={0}
+              onDoubleClick={() => {
+                setInspectorWidth(320)
+                fitCurrentGraph()
+              }}
+              onKeyDown={(event) => resizePanelWithKeyboard('inspector', event)}
+              onPointerDown={(event) => startPanelResize('inspector', event)}
+              onPointerMove={movePanelResize}
+              onPointerUp={stopPanelResize}
+              onPointerCancel={stopPanelResize}
+            />
 
             <aside className={styles.inspector} aria-label="Selection details">
               {selected ? (
@@ -334,13 +513,13 @@ export function ExecutionGraphView({
                     <dt>Relationships in view</dt>
                     <dd>{selectedEdges?.length ?? 0}</dd>
                   </dl>
-                  {selected.resourceType === 'SYMBOL' && (
+                  {selected.resourceType === 'SYMBOL' && selected.id !== incomingRootId && (
                     <button
                       className={styles.incomingButton}
                       type="button"
-                      onClick={() => setIncomingRootId(selected.id)}
+                      onClick={() => inspectImpact(selected)}
                     >
-                      Trace incoming references
+                      Inspect this symbol's blast radius
                     </button>
                   )}
 
@@ -387,25 +566,6 @@ export function ExecutionGraphView({
                         </pre>
                       )}
                     </Highlight>
-                  )}
-
-                  {history.data && (
-                    <>
-                      <h5>Git</h5>
-                      <dl>
-                        <dt>Last author</dt>
-                        <dd>{history.data.lastAuthorName ?? 'No committed history'}</dd>
-                        <dt>Commits</dt>
-                        <dd>
-                          {history.data.totalCommits} total,{' '}
-                          {history.data.commitsLast90Days} in 90 days
-                        </dd>
-                        <dt>Contributors</dt>
-                        <dd>{history.data.contributorCount}</dd>
-                        <dt>Last commit</dt>
-                        <dd>{history.data.lastCommitSha?.slice(0, 10) ?? '-'}</dd>
-                      </dl>
-                    </>
                   )}
                 </>
               ) : (

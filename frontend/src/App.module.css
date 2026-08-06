@@ -1,5 +1,8 @@
 .app {
-  min-height: 100vh;
+  display: grid;
+  height: 100dvh;
+  overflow: hidden;
+  grid-template-rows: 56px minmax(0, 1fr);
   background: var(--paper);
   color: var(--ink);
 }
@@ -8,170 +11,167 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
-  min-height: 64px;
-  padding: 0 clamp(20px, 4vw, 64px);
-  border-bottom: 1px solid var(--line);
-  background: rgb(246 244 238 / 92%);
+  gap: 24px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
 }
 
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  color: var(--ink);
-  font-family: var(--font-display);
-  font-size: 1.08rem;
+.header h1 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  text-decoration: none;
 }
 
-.mark {
-  position: relative;
-  display: block;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-}
-
-.mark::before,
-.mark::after,
-.mark i {
-  position: absolute;
-  content: '';
-}
-
-.mark::before {
-  inset: 4px;
-  border: 1px solid var(--line-strong);
-  border-radius: 50%;
-}
-
-.mark::after {
-  top: 2px;
-  left: 11px;
-  width: 1px;
-  height: 20px;
-  background: var(--accent);
-  transform: rotate(35deg);
-}
-
-.mark i {
-  top: -2px;
-  left: 10px;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.headerMeta,
-.statusList,
-.status {
+.projectPicker {
   display: flex;
   align-items: center;
+  gap: 8px;
+  color: var(--ink-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
-.headerMeta {
-  gap: 24px;
+.projectPicker select {
+  min-width: 240px;
+  padding: 7px 30px 7px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.projectPicker select:disabled {
   color: var(--ink-muted);
+}
+
+.map {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.state,
+.error {
+  display: grid;
+  height: 100%;
+  margin: 0;
+  place-items: center;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  padding: 20px;
+  background: rgb(16 42 74 / 28%);
+  place-items: center;
+}
+
+.dialog {
+  width: min(430px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: 0 16px 45px rgb(16 42 74 / 18%);
+}
+
+.dialog form {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.dialog h2,
+.dialog p {
+  margin: 0;
+}
+
+.dialog h2 {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+}
+
+.dialog p {
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.dialog label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.dialog input {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--ink);
   font-size: 0.76rem;
 }
 
-.statusList {
-  gap: 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.dialog .dialogError {
+  color: var(--danger);
 }
 
-.status {
-  gap: 6px;
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
-.status strong {
+.dialogActions button {
+  padding: 8px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: transparent;
   color: var(--ink-soft);
-  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.72rem;
 }
 
-.status > span:first-child {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.dialogActions button[type='submit'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
 }
 
-.up {
-  background: var(--success);
+.dialogActions button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
-.checking {
-  background: var(--warning);
-}
+@media (max-width: 640px) {
+  .app {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
 
-.down {
-  background: var(--danger);
-}
-
-.main {
-  width: min(1440px, 100%);
-  margin: 0 auto;
-  padding: 64px clamp(20px, 4vw, 64px) 80px;
-}
-
-.intro p,
-.intro h1 {
-  margin: 0;
-}
-
-.kicker {
-  color: var(--accent);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.intro {
-  max-width: 760px;
-  padding-bottom: 48px;
-}
-
-.intro h1 {
-  margin-top: 10px;
-  font-family: var(--font-display);
-  font-size: clamp(2.6rem, 6vw, 4.9rem);
-  font-weight: 500;
-  letter-spacing: -0.05em;
-  line-height: 1;
-}
-
-.intro > p:last-child {
-  max-width: 680px;
-  margin-top: 20px;
-  color: var(--ink-soft);
-  font-size: 1.02rem;
-  line-height: 1.7;
-}
-
-@media (max-width: 720px) {
   .header {
-    min-height: 58px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
   }
 
-  .headerMeta > span,
-  .status span:not(:first-child) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
-
-  .statusList {
-    gap: 10px;
-  }
-
-  .main {
-    padding-top: 44px;
+  .projectPicker select {
+    min-width: 0;
+    flex: 1;
   }
 }

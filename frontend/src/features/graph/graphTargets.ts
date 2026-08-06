@@ -1,8 +1,10 @@
 import type { HttpEndpoint } from '../../api/repositories'
 
 export type GraphTarget = {
-  category: 'ENDPOINT' | 'METHOD' | 'FILE'
+  category: 'ENDPOINT' | 'CALLABLE' | 'FILE'
   id: string
+  symbolId: string | null
+  kind: string
   label: string
   detail: string
   sourcePath: string
@@ -15,6 +17,8 @@ export function endpointTarget(endpoint: HttpEndpoint): GraphTarget {
   return {
     category: 'ENDPOINT',
     id: endpoint.id,
+    symbolId: endpoint.controllerMethodId,
+    kind: 'ENDPOINT',
     label: endpoint.path,
     detail: `${endpoint.controller}.${endpoint.method}`,
     sourcePath: endpoint.sourcePath,

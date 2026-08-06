@@ -1,38 +1,8 @@
-export type RepositoryStatus = 'REGISTERED' | 'INDEXING' | 'READY' | 'FAILED'
-
 export type Repository = {
   id: string
   displayName: string
   relativePath: string
-  defaultBranch: string | null
-  headSha: string | null
-  dirty: boolean
-  buildSystem: string
-  status: RepositoryStatus
-  activeIndexRunId: string | null
-  createdAt: string
-  lastIndexedAt: string | null
-  sourceFileCount: number
-}
-
-export type IndexRun = {
-  id: string
-  repositoryId: string
-  mode: 'FULL' | 'INCREMENTAL'
-  status: 'QUEUED' | 'RUNNING' | 'COMPLETE' | 'FAILED'
-  phase: string
-  filesDiscovered: number
-  filesProcessed: number
-  warningsCount: number
-  symbolsCreated: number
-  endpointsCreated: number
-  edgesCreated: number
-  filesAdded: number
-  filesModified: number
-  filesDeleted: number
-  startedAt: string
-  completedAt: string | null
-  errorSummary: string | null
+  status: 'REGISTERED' | 'INDEXING' | 'READY' | 'FAILED'
 }
 
 export type HttpEndpoint = {
@@ -89,18 +59,10 @@ export type SourceExcerpt = {
   contentHash: string
 }
 
-export type GitFileHistory = {
-  totalCommits: number
-  commitsLast90Days: number
-  lastModifiedAt: string | null
-  lastAuthorName: string | null
-  lastCommitSha: string | null
-  contributorCount: number
-  recentSubjects: string[]
-}
-
 export type CodeSearchResult = {
   id: string
+  symbolId: string | null
+  kind: string
   label: string
   detail: string
   sourcePath: string
@@ -111,20 +73,17 @@ export type CodeSearchResult = {
 
 export type CodeSearchResponse = {
   endpoints: CodeSearchResult[]
-  methods: CodeSearchResult[]
+  callables: CodeSearchResult[]
   files: CodeSearchResult[]
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-  })
+  const response = await fetch(path, init)
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as { detail?: string } | null
     throw new Error(problem?.detail ?? `Request failed with ${response.status}`)
   }
-  return response.status === 204 ? (undefined as T) : (response.json() as Promise<T>)
+  return response.json() as Promise<T>
 }
 
 export const repositoryApi = {
@@ -132,15 +91,13 @@ export const repositoryApi = {
   create: (displayName: string, relativePath: string) =>
     request<Repository>('/api/repositories', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ displayName, relativePath }),
     }),
-  remove: (id: string) =>
-    request<void>(`/api/repositories/${id}`, { method: 'DELETE' }),
   index: (id: string) =>
-    request<IndexRun>(`/api/repositories/${id}/index?mode=INCREMENTAL`, {
+    request<unknown>(`/api/repositories/${id}/index?mode=FULL`, {
       method: 'POST',
     }),
-  run: (id: string) => request<IndexRun>(`/api/index-runs/${id}`),
   endpoints: (id: string) =>
     request<HttpEndpoint[]>(`/api/repositories/${id}/http-endpoints`),
   endpointGraph: (repositoryId: string, endpointId: string, maxDepth = 4) =>
@@ -174,10 +131,6 @@ export const repositoryApi = {
       `/api/repositories/${repositoryId}/source?${query.toString()}`,
     )
   },
-  history: (repositoryId: string, symbolId: string) =>
-    request<GitFileHistory>(
-      `/api/repositories/${repositoryId}/symbols/${symbolId}/history`,
-    ),
   search: (repositoryId: string, query: string) => {
     const parameters = new URLSearchParams({ q: query })
     return request<CodeSearchResponse>(

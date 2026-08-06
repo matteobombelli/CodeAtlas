@@ -1,79 +1,230 @@
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { RepositoryPanel } from './features/repositories/RepositoryPanel'
+import {
+  repositoryApi,
+  type HttpEndpoint,
+  type Repository,
+} from './api/repositories'
 import styles from './App.module.css'
 
-type HealthResponse = {
-  status: string
-  components?: {
-    db?: { status: string }
-  }
-}
+const ExecutionGraphView = lazy(() =>
+  import('./features/graph/ExecutionGraphView').then((module) => ({
+    default: module.ExecutionGraphView,
+  })),
+)
 
-async function getHealth(): Promise<HealthResponse> {
-  const response = await fetch('/actuator/health')
-  if (!response.ok) {
-    throw new Error(`Health request failed with ${response.status}`)
-  }
-  return response.json() as Promise<HealthResponse>
-}
+const ADD_PROJECT = '__add-project__'
 
-function Status({ label, status }: { label: string; status: string }) {
-  const healthy = status === 'UP'
-  const checking = status === 'CHECKING'
+function selfAnalysisProject(repositories: Repository[]) {
   return (
-    <li className={styles.status}>
-      <span
-        className={healthy ? styles.up : checking ? styles.checking : styles.down}
-        aria-hidden="true"
-      />
-      <span>{label}</span>
-      <strong>{healthy ? 'online' : checking ? 'checking' : 'unavailable'}</strong>
-    </li>
+    repositories.find(
+      (repository) => repository.displayName === 'Spring Boot Static Analysis source',
+    ) ??
+    repositories.find(
+      (repository) => repository.relativePath === 'spring-boot-static-analysis',
+    ) ??
+    repositories.find((repository) => repository.status === 'READY') ??
+    repositories[0]
+  )
+}
+
+function initialEndpoint(endpoints: HttpEndpoint[]) {
+  return (
+    endpoints.find(
+      (endpoint) =>
+        endpoint.httpMethod === 'GET' &&
+        endpoint.path === '/api/repositories/{repositoryId}/search',
+    ) ??
+    endpoints.find(
+      (endpoint) =>
+        endpoint.httpMethod === 'POST' &&
+        endpoint.path === '/api/repositories/{repositoryId}/index',
+    ) ??
+    endpoints[0] ??
+    null
   )
 }
 
 export function App() {
-  const health = useQuery({
-    queryKey: ['health'],
-    queryFn: getHealth,
-    refetchInterval: 10_000,
-    retry: 1,
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [showAddProject, setShowAddProject] = useState(false)
+  const [projectPath, setProjectPath] = useState('')
+  const [addProjectError, setAddProjectError] = useState<string | null>(null)
+  const [addingProject, setAddingProject] = useState(false)
+  const projects = useQuery({
+    queryKey: ['repositories'],
+    queryFn: repositoryApi.list,
+    refetchInterval: (query) => {
+      const data = query.state.data
+      return !data?.length || data.some((project) => project.status === 'INDEXING')
+        ? 2_000
+        : false
+    },
   })
+  const defaultProject = useMemo(
+    () => selfAnalysisProject(projects.data ?? []),
+    [projects.data],
+  )
+  const activeProject =
+    projects.data?.find((project) => project.id === activeProjectId) ?? defaultProject
+  const endpoints = useQuery({
+    queryKey: ['endpoints', activeProject?.id],
+    queryFn: () => repositoryApi.endpoints(activeProject!.id),
+    enabled: activeProject?.status === 'READY',
+  })
+  const endpoint = useMemo(
+    () => initialEndpoint(endpoints.data ?? []),
+    [endpoints.data],
+  )
 
-  const backendStatus = health.isError ? 'DOWN' : (health.data?.status ?? 'CHECKING')
-  const databaseStatus = health.isError
-    ? 'UNKNOWN'
-    : (health.data?.components?.db?.status ?? 'CHECKING')
+  useEffect(() => {
+    if (!activeProjectId && defaultProject) {
+      setActiveProjectId(defaultProject.id)
+    }
+  }, [activeProjectId, defaultProject])
+
+  function closeAddProject() {
+    if (addingProject) return
+    setShowAddProject(false)
+    setAddProjectError(null)
+  }
+
+  async function addProject(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const relativePath = projectPath
+      .trim()
+      .replaceAll('\\', '/')
+      .replace(/\/+$/, '')
+    const displayName = relativePath.split('/').filter(Boolean).at(-1)
+    if (!displayName) {
+      setAddProjectError('Enter a project path relative to the configured root.')
+      return
+    }
+
+    setAddingProject(true)
+    setAddProjectError(null)
+    try {
+      const created = await repositoryApi.create(displayName, relativePath)
+      await repositoryApi.index(created.id)
+      setActiveProjectId(created.id)
+      setProjectPath('')
+      setShowAddProject(false)
+      await projects.refetch()
+    } catch (error) {
+      setAddProjectError(
+        error instanceof Error ? error.message : 'Could not add the project.',
+      )
+    } finally {
+      setAddingProject(false)
+    }
+  }
 
   return (
     <div className={styles.app}>
       <header className={styles.header}>
-        <a className={styles.brand} href="/" aria-label="Code Atlas home">
-          <span className={styles.mark} aria-hidden="true">
-            <i />
-          </span>
-          Code Atlas
-        </a>
-        <div className={styles.headerMeta}>
-          <span>Local Spring code browser</span>
-          <ul aria-label="System status" className={styles.statusList}>
-            <Status label="API" status={backendStatus} />
-            <Status label="Database" status={databaseStatus} />
-          </ul>
-        </div>
+        <h1>Spring Boot Static Analysis Map</h1>
+        <label className={styles.projectPicker}>
+          <span>Project</span>
+          <select
+            value={activeProject?.id ?? ''}
+            disabled={projects.isLoading}
+            onChange={(event) => {
+              if (event.target.value === ADD_PROJECT) {
+                setShowAddProject(true)
+                return
+              }
+              setActiveProjectId(event.target.value)
+            }}
+          >
+            {!projects.data?.length && <option value="">No indexed project</option>}
+            {projects.data?.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.displayName}
+              </option>
+            ))}
+            <option value={ADD_PROJECT}>Add another project…</option>
+          </select>
+        </label>
       </header>
 
-      <main className={styles.main}>
-        <section className={styles.intro} aria-labelledby="page-title">
-          <p className={styles.kicker}>Spring Boot, from route to database</p>
-          <h1 id="page-title">Read the request path.</h1>
-          <p>
-            Choose an endpoint to see the methods, repositories, entities, tests,
-            and source lines connected to it. Imported code is read, never run.
+      <main className={styles.map}>
+        {projects.isLoading && <p className={styles.state}>Loading project map</p>}
+        {projects.isError && (
+          <p className={styles.error}>Could not load projects: {projects.error.message}</p>
+        )}
+        {projects.data?.length === 0 && (
+          <p className={styles.state}>No project is configured for analysis.</p>
+        )}
+        {activeProject && activeProject.status !== 'READY' && (
+          <p className={styles.state} role="status">
+            {activeProject.status === 'INDEXING'
+              ? `Indexing ${activeProject.displayName}`
+              : `${activeProject.displayName} is not indexed`}
           </p>
-        </section>
-        <RepositoryPanel />
+        )}
+        {endpoints.isLoading && <p className={styles.state}>Loading project map</p>}
+        {endpoints.isError && (
+          <p className={styles.error}>Could not load map: {endpoints.error.message}</p>
+        )}
+        {activeProject?.status === 'READY' && endpoints.data && (
+          <Suspense fallback={<p className={styles.state}>Loading project map</p>}>
+            <ExecutionGraphView
+              key={activeProject.id}
+              repositoryId={activeProject.id}
+              endpoint={endpoint}
+              endpoints={endpoints.data}
+            />
+          </Suspense>
+        )}
       </main>
+
+      {showAddProject && (
+        <div className={styles.dialogBackdrop} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeAddProject()
+        }}>
+          <section
+            className={styles.dialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-project-title"
+          >
+            <form onSubmit={addProject}>
+              <h2 id="add-project-title">Add local project</h2>
+              <p>
+                Enter a directory beneath the backend&apos;s configured project root.
+              </p>
+              <label>
+                <span>Relative path</span>
+                <input
+                  autoFocus
+                  value={projectPath}
+                  onChange={(event) => setProjectPath(event.target.value)}
+                  placeholder="my-spring-project"
+                  disabled={addingProject}
+                />
+              </label>
+              {addProjectError && <p className={styles.dialogError} role="alert">
+                {addProjectError}
+              </p>}
+              <div className={styles.dialogActions}>
+                <button type="button" onClick={closeAddProject} disabled={addingProject}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={addingProject}>
+                  {addingProject ? 'Adding project' : 'Add and index'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   )
 }

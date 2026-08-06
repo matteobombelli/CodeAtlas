@@ -15,6 +15,10 @@ function resultTarget(
   return { category, ...result }
 }
 
+function pathTail(path: string) {
+  return `…/${path.split('/').at(-1) ?? path}`
+}
+
 function ResultGroup({
   title,
   category,
@@ -25,7 +29,7 @@ function ResultGroup({
   title: string
   category: GraphTarget['category']
   results: CodeSearchResult[]
-  active: GraphTarget
+  active: GraphTarget | null
   onSelect: (target: GraphTarget) => void
 }) {
   return (
@@ -40,7 +44,7 @@ function ResultGroup({
           <button
             key={`${category}:${result.id}`}
             className={
-              active.category === category && active.id === result.id
+              active?.category === category && active.id === result.id
                 ? styles.activeNavItem
                 : undefined
             }
@@ -51,9 +55,19 @@ function ResultGroup({
               {result.httpMethod && (
                 <b data-method={result.httpMethod}>{result.httpMethod}</b>
               )}
-              <strong>{result.label}</strong>
+              {!result.httpMethod && category === 'CALLABLE' && (
+                <b data-kind={result.kind}>{result.kind.toLowerCase()}</b>
+              )}
+              <strong
+                className={category === 'FILE' ? styles.pathTail : undefined}
+                title={category === 'FILE' ? result.sourcePath : undefined}
+              >
+                {category === 'FILE' ? pathTail(result.sourcePath) : result.label}
+              </strong>
             </span>
-            <small>{result.sourcePath}</small>
+            <small className={styles.pathTail} title={result.sourcePath}>
+              {pathTail(result.sourcePath)}
+            </small>
           </button>
         )
       })}
@@ -70,7 +84,7 @@ export function CodeNavigator({
 }: {
   repositoryId: string
   endpoints: HttpEndpoint[]
-  active: GraphTarget
+  active: GraphTarget | null
   onSelect: (target: GraphTarget) => void
 }) {
   const [query, setQuery] = useState('')
@@ -85,12 +99,12 @@ export function CodeNavigator({
   return (
     <nav className={styles.navigator} aria-label="Code browser">
       <label className={styles.searchBox}>
-        <span>Search code</span>
+        <span>Find code to inspect</span>
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Endpoint, method, or file"
+          placeholder="Function, method, endpoint, or file"
         />
       </label>
 
@@ -111,9 +125,9 @@ export function CodeNavigator({
                   onSelect={onSelect}
                 />
                 <ResultGroup
-                  title="Methods"
-                  category="METHOD"
-                  results={search.data.methods}
+                  title="Functions & methods"
+                  category="CALLABLE"
+                  results={search.data.callables}
                   active={active}
                   onSelect={onSelect}
                 />
@@ -128,39 +142,46 @@ export function CodeNavigator({
             )}
           </>
         ) : (
-          <section className={styles.endpointList} aria-labelledby="endpoint-list-title">
-            <div className={styles.resultHeading}>
-              <h4 id="endpoint-list-title">Endpoints</h4>
-              <span>{endpoints.length}</span>
-            </div>
-            {endpoints.map((endpoint) => {
-              const target = endpointTarget(endpoint)
-              return (
-                <button
-                  key={endpoint.id}
-                  className={
-                    active.category === 'ENDPOINT' && active.id === endpoint.id
-                      ? styles.activeNavItem
-                      : undefined
-                  }
-                  type="button"
-                  onClick={() => onSelect(target)}
-                >
-                  <span className={styles.resultLabel}>
-                    <b data-method={endpoint.httpMethod}>{endpoint.httpMethod}</b>
-                    <strong>{endpoint.path}</strong>
-                  </span>
-                  <small>
-                    {endpoint.controller}.{endpoint.method}
-                  </small>
-                </button>
-              )
-            })}
-          </section>
+          <>
+            <p className={styles.navigatorIntro}>
+              Search for the code you plan to change, then inspect what it calls or
+              what may depend on it.
+            </p>
+            <section className={styles.endpointList} aria-labelledby="endpoint-list-title">
+              <div className={styles.resultHeading}>
+                <h4 id="endpoint-list-title">Browse endpoints</h4>
+                <span>{endpoints.length}</span>
+              </div>
+              {endpoints.map((endpoint) => {
+                const target = endpointTarget(endpoint)
+                return (
+                  <button
+                    key={endpoint.id}
+                    className={
+                      active?.category === 'ENDPOINT' && active.id === endpoint.id
+                        ? styles.activeNavItem
+                        : undefined
+                    }
+                    type="button"
+                    onClick={() => onSelect(target)}
+                  >
+                    <span className={styles.resultLabel}>
+                      <b data-method={endpoint.httpMethod}>{endpoint.httpMethod}</b>
+                      <strong>{endpoint.path}</strong>
+                    </span>
+                    <small className={styles.pathTail} title={endpoint.sourcePath}>
+                      {pathTail(endpoint.sourcePath)}
+                    </small>
+                  </button>
+                )
+              })}
+              {endpoints.length === 0 && <p>No HTTP endpoints in this index.</p>}
+            </section>
+          </>
         )}
       </div>
       <p className={styles.searchHint}>
-        Search uses the current index. Enter at least two characters.
+        Search covers named functions, methods, constructors, endpoints, and files.
       </p>
     </nav>
   )

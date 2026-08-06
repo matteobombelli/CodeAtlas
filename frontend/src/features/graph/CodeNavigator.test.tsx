@@ -16,23 +16,25 @@ const endpoint: HttpEndpoint = {
   httpMethod: 'POST',
   path: '/api/repositories/{repositoryId}/index',
   controllerMethodId: 'method-1',
-  controller: 'dev.codeatlas.api.IndexRunController',
+  controller: 'dev.springbootstaticanalysis.api.IndexRunController',
   method: 'start',
   signature: 'start(UUID)',
-  sourcePath: 'backend/src/main/java/dev/codeatlas/api/IndexRunController.java',
+  sourcePath: 'backend/src/main/java/dev/springbootstaticanalysis/api/IndexRunController.java',
   startLine: 20,
   endLine: 30,
   requestType: null,
   responseType: null,
 }
 
-test('groups search results into endpoints, methods, and files', async () => {
+test('groups search results into endpoints, callables, and files', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
     Promise.resolve(new Response(
       JSON.stringify({
         endpoints: [
           {
             id: 'endpoint-1',
+            symbolId: 'method-1',
+            kind: 'ENDPOINT',
             label: endpoint.path,
             detail: 'IndexRunController.start',
             sourcePath: endpoint.sourcePath,
@@ -41,13 +43,15 @@ test('groups search results into endpoints, methods, and files', async () => {
             httpMethod: 'POST',
           },
         ],
-        methods: [
+        callables: [
           {
             id: 'method-2',
+            symbolId: 'method-2',
+            kind: 'METHOD',
             label: 'execute(UUID)',
-            detail: 'dev.codeatlas.indexing.IndexingService.execute',
+            detail: 'dev.springbootstaticanalysis.indexing.IndexingService.execute',
             sourcePath:
-              'backend/src/main/java/dev/codeatlas/indexing/IndexingService.java',
+              'backend/src/main/java/dev/springbootstaticanalysis/indexing/IndexingService.java',
             startLine: 80,
             endLine: 120,
             httpMethod: null,
@@ -56,10 +60,12 @@ test('groups search results into endpoints, methods, and files', async () => {
         files: [
           {
             id: 'file-1',
-            label: 'backend/src/main/java/dev/codeatlas/indexing/IndexingService.java',
-            detail: 'dev.codeatlas.indexing',
+            symbolId: null,
+            kind: 'FILE',
+            label: 'backend/src/main/java/dev/springbootstaticanalysis/indexing/IndexingService.java',
+            detail: 'dev.springbootstaticanalysis.indexing',
             sourcePath:
-              'backend/src/main/java/dev/codeatlas/indexing/IndexingService.java',
+              'backend/src/main/java/dev/springbootstaticanalysis/indexing/IndexingService.java',
             startLine: 1,
             endLine: 220,
             httpMethod: null,
@@ -88,13 +94,18 @@ test('groups search results into endpoints, methods, and files', async () => {
   await userEvent.type(screen.getByRole('searchbox'), 'index')
 
   expect(await screen.findByRole('heading', { name: 'Endpoints' })).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'Methods' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Functions & methods' })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Files' })).toBeInTheDocument()
   expect(screen.getByText('execute(UUID)')).toBeInTheDocument()
-  expect(screen.getAllByText(/IndexingService.java/).length).toBeGreaterThan(0)
+  expect(
+    screen.getAllByTitle(
+      'backend/src/main/java/dev/springbootstaticanalysis/indexing/IndexingService.java',
+    ).length,
+  ).toBeGreaterThan(0)
+  expect(screen.getAllByText('…/IndexingService.java').length).toBeGreaterThan(0)
 
   await userEvent.click(screen.getByText('execute(UUID)'))
   expect(onSelect).toHaveBeenCalledWith(
-    expect.objectContaining({ category: 'METHOD', id: 'method-2' }),
+    expect.objectContaining({ category: 'CALLABLE', id: 'method-2' }),
   )
 })
