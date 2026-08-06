@@ -32,9 +32,9 @@ docker compose up --build
 ```
 
 Open <http://localhost:3000>. On a clean database, Compose mounts this checkout
-read-only, registers it as **Code Atlas · self-analysis**, and indexes it in the
-background. Browse the detected endpoints and open
-`POST /api/repositories/{repositoryId}/index` to follow the indexing workflow.
+read-only, registers it as **Code Atlas source**, and indexes it in the
+background. The frontend opens the self-analysis graph as soon as the index is
+ready, starting at `POST /api/repositories/{repositoryId}/index`.
 
 The independent `demo-app` Gradle project is **Atlas Tasks**, a small Spring Boot
 issue tracker containing projects, issues, assignment, notifications, comments,

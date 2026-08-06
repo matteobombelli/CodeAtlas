@@ -30,5 +30,5 @@ code-atlas:
     queue-capacity: 10
   demo:
     enabled: ${CODE_ATLAS_DEMO_ENABLED:false}
-    display-name: ${CODE_ATLAS_DEMO_DISPLAY_NAME:Code Atlas}
+    display-name: ${CODE_ATLAS_DEMO_DISPLAY_NAME:Code Atlas source}
     relative-path: ${CODE_ATLAS_DEMO_RELATIVE_PATH:code-atlas}

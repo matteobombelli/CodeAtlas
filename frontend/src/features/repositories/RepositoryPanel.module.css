@@ -1,6 +1,65 @@
 .panel {
-  padding-top: 36px;
+  min-width: 0;
+}
+
+.demoHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 28px;
   border-top: 1px solid var(--line);
+}
+
+.demoHeader p,
+.demoHeader h2 {
+  margin: 0;
+}
+
+.demoHeader p {
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.demoHeader h2 {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.demoHeader label {
+  display: grid;
+  gap: 5px;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+}
+
+.demoHeader select {
+  min-width: 220px;
+  padding: 9px 32px 9px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.demoState {
+  display: grid;
+  gap: 5px;
+  margin: 24px 0 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+}
+
+.demoState strong {
+  color: var(--ink);
 }
 
 .titleRow,
@@ -10,6 +69,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.titleRow {
+  margin-top: 64px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
 }
 
 .titleRow p,
@@ -262,6 +327,15 @@
 }
 
 @media (max-width: 720px) {
+  .demoHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .demoHeader select {
+    width: 100%;
+  }
+
   .form {
     grid-template-columns: 1fr;
   }

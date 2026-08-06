@@ -172,6 +172,7 @@ export function RepositoryPanel() {
   const queryClient = useQueryClient()
   const [displayName, setDisplayName] = useState('')
   const [relativePath, setRelativePath] = useState('')
+  const [activeRepositoryId, setActiveRepositoryId] = useState<string | null>(null)
   const [selected, setSelected] = useState<{
     repositoryId: string
     endpoint: HttpEndpoint
@@ -186,6 +187,37 @@ export function RepositoryPanel() {
         : false
     },
   })
+  const preferredRepository =
+    repositories.data?.find((repository) => repository.relativePath === 'code-atlas') ??
+    repositories.data?.find((repository) => repository.status === 'READY') ??
+    repositories.data?.[0]
+  const activeRepository =
+    repositories.data?.find((repository) => repository.id === activeRepositoryId) ??
+    preferredRepository
+  const demoEndpoints = useQuery({
+    queryKey: ['endpoints', activeRepository?.id],
+    queryFn: () => repositoryApi.endpoints(activeRepository!.id),
+    enabled: activeRepository?.status === 'READY',
+  })
+
+  useEffect(() => {
+    if (!activeRepositoryId && preferredRepository) {
+      setActiveRepositoryId(preferredRepository.id)
+    }
+  }, [activeRepositoryId, preferredRepository])
+
+  useEffect(() => {
+    if (!activeRepository || !demoEndpoints.data?.length) return
+    if (selected?.repositoryId === activeRepository.id) return
+    const preferredEndpoint =
+      demoEndpoints.data.find(
+        (endpoint) =>
+          endpoint.httpMethod === 'POST' &&
+          endpoint.path.includes('/repositories/{repositoryId}/index'),
+      ) ?? demoEndpoints.data[0]
+    setSelected({ repositoryId: activeRepository.id, endpoint: preferredEndpoint })
+  }, [activeRepository, demoEndpoints.data, selected?.repositoryId])
+
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['repositories'] })
   }
@@ -205,6 +237,59 @@ export function RepositoryPanel() {
 
   return (
     <section className={styles.panel} aria-labelledby="repositories-title">
+      <div className={styles.demoHeader}>
+        <div>
+          <p>Live repository</p>
+          <h2>{activeRepository?.displayName ?? 'Waiting for a repository'}</h2>
+        </div>
+        {repositories.data && repositories.data.length > 1 && (
+          <label>
+            Repository
+            <select
+              value={activeRepository?.id ?? ''}
+              onChange={(event) => {
+                setActiveRepositoryId(event.target.value)
+                setSelected(null)
+              }}
+            >
+              {repositories.data.map((repository) => (
+                <option key={repository.id} value={repository.id}>
+                  {repository.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {repositories.isLoading && (
+        <p className={styles.demoState}>Loading the mounted repository.</p>
+      )}
+      {activeRepository && activeRepository.status !== 'READY' && (
+        <div className={styles.demoState} role="status">
+          <strong>
+            {activeRepository.status === 'INDEXING'
+              ? 'Indexing this repository'
+              : 'This repository is not indexed'}
+          </strong>
+          <span>
+            {activeRepository.sourceFileCount} Java files found. The graph will open when
+            the index is ready.
+          </span>
+        </div>
+      )}
+      {demoEndpoints.isLoading && (
+        <p className={styles.demoState}>Loading indexed endpoints.</p>
+      )}
+      {selected && selected.repositoryId === activeRepository?.id && (
+        <Suspense fallback={<p className={styles.demoState}>Loading graph.</p>}>
+          <ExecutionGraphView
+            repositoryId={selected.repositoryId}
+            endpoint={selected.endpoint}
+          />
+        </Suspense>
+      )}
+
       <div className={styles.titleRow}>
         <div>
           <h3 id="repositories-title">Repositories</h3>
@@ -248,7 +333,10 @@ export function RepositoryPanel() {
             repository={repository}
             onChanged={refresh}
             onOpenEndpoint={(endpoint) =>
-              setSelected({ repositoryId: repository.id, endpoint })
+              {
+                setActiveRepositoryId(repository.id)
+                setSelected({ repositoryId: repository.id, endpoint })
+              }
             }
           />
         ))}
@@ -256,14 +344,6 @@ export function RepositoryPanel() {
           <p className={styles.empty}>Add a mounted Git repository to begin.</p>
         )}
       </div>
-      {selected && (
-        <Suspense fallback={<p className={styles.empty}>Loading graph</p>}>
-          <ExecutionGraphView
-            repositoryId={selected.repositoryId}
-            endpoint={selected.endpoint}
-          />
-        </Suspense>
-      )}
     </section>
   )
 }
