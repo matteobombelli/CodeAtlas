@@ -1,0 +1,16 @@
+package dev.springbootstaticanalysis.analysis;
+
+import dev.springbootstaticanalysis.indexing.DiscoveredSourceFile;
+import java.util.List;
+import java.util.Map;
+
+public record RepositoryAnalysis(
+        List<DiscoveredSourceFile> files,
+        Map<java.util.UUID, String> packages,
+        List<AnalyzedSymbol> symbols,
+        List<AnalyzedEndpoint> endpoints,
+        List<AnalysisWarning> warnings,
+        List<AnalyzedRelationship> relationships,
+        List<UnresolvedRelationship> unresolved,
+        List<ExternalReference> externalReferences) {
+}

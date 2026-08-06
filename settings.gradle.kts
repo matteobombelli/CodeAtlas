@@ -5,7 +5,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "code-atlas"
+rootProject.name = "spring-boot-static-analysis"
 
 include("backend")
 include("demo-app")

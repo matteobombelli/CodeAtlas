@@ -1,10 +1,10 @@
 spring:
   application:
-    name: code-atlas
+    name: spring-boot-static-analysis
   datasource:
-    url: ${CODE_ATLAS_DATABASE_URL:jdbc:postgresql://localhost:5432/code_atlas}
-    username: ${CODE_ATLAS_DATABASE_USERNAME:code_atlas}
-    password: ${CODE_ATLAS_DATABASE_PASSWORD:code_atlas}
+    url: ${SPRING_BOOT_STATIC_ANALYSIS_DATABASE_URL:jdbc:postgresql://localhost:5432/spring_boot_static_analysis}
+    username: ${SPRING_BOOT_STATIC_ANALYSIS_DATABASE_USERNAME:spring_boot_static_analysis}
+    password: ${SPRING_BOOT_STATIC_ANALYSIS_DATABASE_PASSWORD:spring_boot_static_analysis}
   flyway:
     enabled: true
 
@@ -21,14 +21,14 @@ management:
 server:
   shutdown: graceful
 
-code-atlas:
-  repositories-root: ${CODE_ATLAS_REPOSITORIES_ROOT:/workspace/repositories}
+spring-boot-static-analysis:
+  repositories-root: ${SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT:/workspace/repositories}
   max-source-file-bytes: 1048576
   max-source-files: 10000
   indexing:
     max-concurrent-jobs: 1
     queue-capacity: 10
   demo:
-    enabled: ${CODE_ATLAS_DEMO_ENABLED:false}
-    display-name: ${CODE_ATLAS_DEMO_DISPLAY_NAME:Code Atlas source}
-    relative-path: ${CODE_ATLAS_DEMO_RELATIVE_PATH:code-atlas}
+    enabled: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_ENABLED:false}
+    display-name: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_DISPLAY_NAME:Spring Boot Static Analysis source}
+    relative-path: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_RELATIVE_PATH:spring-boot-static-analysis}

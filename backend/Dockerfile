@@ -8,9 +8,9 @@ RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew :backend:bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S codeatlas && adduser -S codeatlas -G codeatlas
+RUN addgroup -S springbootstaticanalysis && adduser -S springbootstaticanalysis -G springbootstaticanalysis
 WORKDIR /app
 COPY --from=build /workspace/backend/build/libs/backend-*.jar app.jar
-USER codeatlas
+USER springbootstaticanalysis
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
