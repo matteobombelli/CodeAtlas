@@ -30,8 +30,9 @@ public class ApiExceptionHandler {
     private ProblemDetail problem(HttpStatus status, String title, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(title);
-        problem.setType(URI.create("https://sbsa.dev/problems/"
-                + title.toLowerCase().replace(' ', '-')));
+        problem.setType(URI.create(
+                "https://github.com/matteobombelli/spring-boot-static-analysis/problems/"
+                        + title.toLowerCase().replace(' ', '-')));
         return problem;
     }
 }

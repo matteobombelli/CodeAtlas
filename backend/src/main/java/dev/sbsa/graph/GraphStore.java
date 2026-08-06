@@ -5,6 +5,7 @@ import dev.sbsa.graph.GraphEdge.Evidence;
 import dev.sbsa.graph.GraphNode.SourceLocation;
 import dev.sbsa.shared.InvalidRequestException;
 import dev.sbsa.shared.NotFoundException;
+import dev.sbsa.shared.SbsaProperties;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,15 +19,17 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class GraphStore {
 
-    private static final int DEFAULT_NODE_LIMIT = 100;
-    private static final int DEFAULT_EDGE_LIMIT = 250;
     private static final Set<String> TRAVERSABLE =
             Set.of("CALLS", "READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY");
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final int nodeLimit;
+    private final int edgeLimit;
 
-    public GraphStore(NamedParameterJdbcTemplate jdbc) {
+    public GraphStore(NamedParameterJdbcTemplate jdbc, SbsaProperties properties) {
         this.jdbc = jdbc;
+        this.nodeLimit = properties.graph().maxNodes();
+        this.edgeLimit = properties.graph().maxEdges();
     }
 
     public ExecutionGraph endpointGraph(
@@ -40,7 +43,9 @@ public class GraphStore {
         }
         EndpointRoot root = endpointRoot(repositoryId, endpointId);
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        // Keyed by edge id: a symbol reachable by more than one path would otherwise
+        // contribute the same edge twice, which React Flow renders as a duplicate.
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
         List<GraphWarning> warnings = new ArrayList<>();
 
         String endpointNodeId = "endpoint:" + root.endpointId();
@@ -55,7 +60,7 @@ public class GraphStore {
 
         GraphNode controllerMethod = symbolNode(root.methodId());
         nodes.put(controllerMethod.id(), controllerMethod);
-        edges.add(new GraphEdge(
+        putEdge(edges, new GraphEdge(
                 "handles:" + root.endpointId(),
                 endpointNodeId,
                 controllerMethod.id(),
@@ -79,32 +84,34 @@ public class GraphStore {
                         || (!includeUncertain && edge.confidence() < 0.70)) {
                     continue;
                 }
-                if (edges.size() >= DEFAULT_EDGE_LIMIT) {
+                if (edges.size() >= edgeLimit) {
                     truncated = true;
                     reason = "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
                 GraphNode target = symbolNode(edge.targetId());
-                if (!nodes.containsKey(target.id()) && nodes.size() >= DEFAULT_NODE_LIMIT) {
+                if (!nodes.containsKey(target.id()) && nodes.size() >= nodeLimit) {
                     truncated = true;
                     reason = "NODE_LIMIT";
                     queue.clear();
                     break;
                 }
                 boolean unseen = nodes.putIfAbsent(target.id(), target) == null;
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, edge.toGraphEdge());
                 if (unseen) {
                     queue.addLast(new Visit(edge.targetId(), visit.depth() + 1));
                 }
             }
-            if (!includeExternal) {
+            // The loop below re-checks both limits itself, so this only skips a query
+            // whose results would immediately be discarded.
+            if (!includeExternal || truncated) {
                 continue;
             }
             for (StoredExternal reference : external(repositoryId, visit.symbolId())) {
-                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                if (nodes.size() >= nodeLimit || edges.size() >= edgeLimit) {
                     truncated = true;
-                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    reason = nodes.size() >= nodeLimit ? "NODE_LIMIT" : "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
@@ -114,7 +121,7 @@ public class GraphStore {
                         "External or unavailable dependency",
                         new SourceLocation(reference.path(), reference.line(), reference.line()),
                         List.of("EXTERNAL")));
-                edges.add(new GraphEdge(
+                putEdge(edges, new GraphEdge(
                         "external-edge:" + reference.id(),
                         visit.symbolId().toString(),
                         id,
@@ -142,7 +149,7 @@ public class GraphStore {
         return new ExecutionGraph(
                 endpointNodeId,
                 List.copyOf(nodes.values()),
-                edges,
+                List.copyOf(edges.values()),
                 warnings,
                 truncated,
                 reason);
@@ -157,7 +164,9 @@ public class GraphStore {
             throw new InvalidRequestException("maxDepth must be between 1 and 8");
         }
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        // Keyed by edge id: a cycle can revisit a symbol that already contributed its
+        // "affected:" endpoint edge, which would otherwise emit that id twice.
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
         List<GraphWarning> warnings = new ArrayList<>();
         GraphNode root = symbolNode(symbolId);
         nodes.put(root.id(), root);
@@ -172,7 +181,7 @@ public class GraphStore {
                     new SourceLocation(
                             endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
                     List.of("ENDPOINT")));
-            edges.add(new GraphEdge(
+            putEdge(edges, new GraphEdge(
                     "affected:" + endpoint.endpointId(),
                     endpointNodeId,
                     root.id(),
@@ -193,7 +202,7 @@ public class GraphStore {
             if (Set.of("READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY").contains(edge.kind())) {
                 GraphNode target = symbolNode(edge.targetId());
                 nodes.putIfAbsent(target.id(), target);
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, edge.toGraphEdge());
             }
         }
 
@@ -207,15 +216,15 @@ public class GraphStore {
                         || (!includeUncertain && edge.confidence() < 0.70)) {
                     continue;
                 }
-                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                if (nodes.size() >= nodeLimit || edges.size() >= edgeLimit) {
                     truncated = true;
-                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    reason = nodes.size() >= nodeLimit ? "NODE_LIMIT" : "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
                 GraphNode source = symbolNode(edge.sourceId());
                 boolean unseen = nodes.putIfAbsent(source.id(), source) == null;
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, edge.toGraphEdge());
                 for (EndpointRoot endpoint : endpointsFor(repositoryId, edge.sourceId())) {
                     String endpointNodeId = "endpoint:" + endpoint.endpointId();
                     nodes.putIfAbsent(endpointNodeId, new GraphNode(
@@ -227,7 +236,7 @@ public class GraphStore {
                             new SourceLocation(
                                     endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
                             List.of("ENDPOINT")));
-                    edges.add(new GraphEdge(
+                    putEdge(edges, new GraphEdge(
                             "affected:" + endpoint.endpointId(),
                             endpointNodeId,
                             source.id(),
@@ -257,7 +266,7 @@ public class GraphStore {
         return new ExecutionGraph(
                 symbolId.toString(),
                 List.copyOf(nodes.values()),
-                edges,
+                List.copyOf(edges.values()),
                 warnings,
                 truncated,
                 reason);
@@ -420,6 +429,11 @@ public class GraphStore {
                 WHERE repository_id = :repositoryId AND source_symbol_id IN (:symbolIds)
                 """, Map.of("repositoryId", repositoryId, "symbolIds", symbolIds), Integer.class);
         return count == null ? 0 : count;
+    }
+
+    /** Adds an edge unless one with the same id is already present. */
+    private static void putEdge(LinkedHashMap<String, GraphEdge> edges, GraphEdge edge) {
+        edges.putIfAbsent(edge.id(), edge);
     }
 
     private static String preferredRole(List<String> roles, String fallback) {

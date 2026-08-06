@@ -90,6 +90,8 @@ class RepositoryServiceTest {
                 root,
                 1_048_576,
                 10_000,
-                new SbsaProperties.Indexing(1, 10)));
+                false,
+                new SbsaProperties.Indexing(1, 10),
+                new SbsaProperties.Graph(100, 250)));
     }
 }

@@ -51,10 +51,12 @@ function RunProgress({
 
 function RepositoryCard({
   repository,
+  readOnly,
   onChanged,
   onOpenEndpoint,
 }: {
   repository: Repository
+  readOnly: boolean
   onChanged: () => void
   onOpenEndpoint: (endpoint: HttpEndpoint) => void
 }) {
@@ -120,13 +122,15 @@ function RepositoryCard({
         <p className={styles.error}>{(index.error ?? remove.error)?.message}</p>
       )}
       <div className={styles.actions}>
-        <button disabled={index.isPending || !!run} onClick={() => index.mutate()}>
-          {index.isPending
-            ? 'Queueing…'
-            : repository.activeIndexRunId
-              ? 'Rescan repository'
-              : 'Index repository'}
-        </button>
+        {!readOnly && (
+          <button disabled={index.isPending || !!run} onClick={() => index.mutate()}>
+            {index.isPending
+              ? 'Queueing…'
+              : repository.activeIndexRunId
+                ? 'Rescan repository'
+                : 'Index repository'}
+          </button>
+        )}
         {repository.status === 'READY' && (
           <button
             className={styles.secondary}
@@ -135,13 +139,15 @@ function RepositoryCard({
             {endpointsOpen ? 'Hide endpoints' : 'Browse endpoints'}
           </button>
         )}
-        <button
-          className={styles.secondary}
-          disabled={remove.isPending}
-          onClick={() => remove.mutate()}
-        >
-          Remove
-        </button>
+        {!readOnly && (
+          <button
+            className={styles.secondary}
+            disabled={remove.isPending}
+            onClick={() => remove.mutate()}
+          >
+            Remove
+          </button>
+        )}
       </div>
       {endpointsOpen && (
         <div className={styles.endpoints}>
@@ -176,6 +182,12 @@ export function RepositoryPanel() {
     repositoryId: string
     endpoint: HttpEndpoint
   } | null>(null)
+  const config = useQuery({
+    queryKey: ['config'],
+    queryFn: repositoryApi.config,
+    staleTime: Infinity,
+  })
+  const readOnly = config.data?.readOnly ?? false
   const repositories = useQuery({
     queryKey: ['repositories'],
     queryFn: repositoryApi.list,
@@ -213,30 +225,37 @@ export function RepositoryPanel() {
         <span>{repositories.data?.length ?? 0} registered</span>
       </div>
 
-      <form onSubmit={submit} className={styles.form}>
-        <label>
-          Display name
-          <input
-            required
-            maxLength={200}
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            placeholder="Atlas Tasks"
-          />
-        </label>
-        <label>
-          Relative path
-          <input
-            required
-            value={relativePath}
-            onChange={(event) => setRelativePath(event.target.value)}
-            placeholder="sbsa"
-          />
-        </label>
-        <button disabled={create.isPending} type="submit">
-          {create.isPending ? 'Adding…' : 'Add repository'}
-        </button>
-      </form>
+      {readOnly ? (
+        <p className={styles.empty}>
+          This is a public read-only deployment. Repositories cannot be added,
+          rescanned, or removed here.
+        </p>
+      ) : (
+        <form onSubmit={submit} className={styles.form}>
+          <label>
+            Display name
+            <input
+              required
+              maxLength={200}
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Atlas Tasks"
+            />
+          </label>
+          <label>
+            Relative path
+            <input
+              required
+              value={relativePath}
+              onChange={(event) => setRelativePath(event.target.value)}
+              placeholder="my-service"
+            />
+          </label>
+          <button disabled={create.isPending} type="submit">
+            {create.isPending ? 'Adding…' : 'Add repository'}
+          </button>
+        </form>
+      )}
 
       {create.error && <p className={styles.error}>{create.error.message}</p>}
       {repositories.isError && <p className={styles.error}>{repositories.error.message}</p>}
@@ -246,6 +265,7 @@ export function RepositoryPanel() {
           <RepositoryCard
             key={repository.id}
             repository={repository}
+            readOnly={readOnly}
             onChanged={refresh}
             onOpenEndpoint={(endpoint) =>
               setSelected({ repositoryId: repository.id, endpoint })

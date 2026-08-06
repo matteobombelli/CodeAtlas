@@ -31,10 +31,11 @@ Requirements: Docker with Docker Compose.
 docker compose up --build
 ```
 
-Open <http://localhost:3000>. On a clean database, Compose mounts this checkout
-read-only, registers it as **Spring Boot Static Analysis · self-analysis**, and indexes it in the
-background. Browse the detected endpoints and open
-`POST /api/repositories/{repositoryId}/index` to follow the indexing workflow.
+Open <http://localhost:3000>. Compose mounts this checkout read-only, registers it
+as **Spring Boot Static Analysis · self-analysis**, and indexes it in the
+background on every start, so a restart never serves a stale graph. Browse the
+detected endpoints and open `POST /api/repositories/{repositoryId}/index` to
+follow the indexing workflow.
 
 The independent `demo-app` Gradle project is **Atlas Tasks**, a small Spring Boot
 issue tracker containing projects, issues, assignment, notifications, comments,
@@ -49,6 +50,37 @@ make stop
 make test
 make clean
 ```
+
+## Deploy
+
+`compose.prod.yaml` is the supported production overlay. It enables read-only
+mode, binds published ports to loopback so a reverse proxy is the only way in,
+takes the database password from the environment, and restarts every service
+with the Docker daemon.
+
+```bash
+export SBSA_DB_PASSWORD='...'
+docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+```
+
+The frontend is served at `/` by default. To serve it under a reverse-proxy
+prefix, build it with `VITE_BASE_PATH` (already set in the overlay) and have the
+proxy strip that prefix before forwarding, so nginx keeps seeing `/api/`,
+`/actuator/`, and `/assets/` at the root.
+
+In read-only mode the API answers `405` to every request under `/api/` that is
+not `GET`, `HEAD`, or `OPTIONS`, and `GET /api/config` reports `readOnly` so the
+UI hides the controls it cannot use. Indexing still runs: the demo bootstrap
+calls it internally rather than through the API.
+
+| Variable | Purpose |
+| --- | --- |
+| `SBSA_READ_ONLY` | Rejects mutating API requests. Default `false`. |
+| `SBSA_DATABASE_URL` / `_USERNAME` / `_PASSWORD` | PostgreSQL connection. |
+| `SBSA_REPOSITORIES_ROOT` | Approved root. Repository paths are always relative to it. |
+| `SBSA_DEMO_ENABLED` / `_DISPLAY_NAME` / `_RELATIVE_PATH` | Self-analysis demo registration. |
+| `SBSA_DEMO_REINDEX_ON_STARTUP` | Refreshes the demo graph on start. Default `true`. |
+| `SBSA_GRAPH_MAX_NODES` / `_MAX_EDGES` | Bounds on a single rendered graph. |
 
 ## Development
 
