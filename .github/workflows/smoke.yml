@@ -11,7 +11,7 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -34,7 +34,7 @@ jobs:
       SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH: /projects/spring-boot-static-analysis/
       PREFIX: /projects/spring-boot-static-analysis
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
