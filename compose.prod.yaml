@@ -4,6 +4,8 @@
 #     docker compose -f compose.yaml -f compose.prod.yaml up -d --build
 #
 # Only the frontend is published, on loopback, for a TLS reverse proxy to reach.
+# It publishes two entrances: the public one the proxy forwards, and a second
+# one that only someone already on this host can reach, which may add projects.
 services:
   postgres:
     restart: unless-stopped
@@ -37,9 +39,8 @@ services:
 
   frontend:
     restart: unless-stopped
-    build:
-      args:
-        VITE_BASE_PATH: ${SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH:-/}
+    ports:
+      - "127.0.0.1:${SPRING_BOOT_STATIC_ANALYSIS_LOCAL_PORT:-3001}:8081"
     mem_limit: 128m
     security_opt:
       - no-new-privileges:true

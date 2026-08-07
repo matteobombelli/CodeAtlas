@@ -1,4 +1,4 @@
-package dev.springbootstaticanalysis.application;
+package dev.springbootstaticanalysis.demo;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +10,9 @@ import dev.springbootstaticanalysis.repository.BuildSystem;
 import dev.springbootstaticanalysis.repository.RegisteredRepository;
 import dev.springbootstaticanalysis.repository.RepositoryService;
 import dev.springbootstaticanalysis.repository.RepositoryStatus;
+import dev.springbootstaticanalysis.TestProperties;
+import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -20,12 +23,16 @@ class DemoBootstrapTest {
 
     private final RepositoryService repositories = org.mockito.Mockito.mock(RepositoryService.class);
     private final IndexingService indexing = org.mockito.Mockito.mock(IndexingService.class);
-    private final DemoBootstrapProperties properties =
-            new DemoBootstrapProperties(
-                    true,
-                    "Spring Boot Static Analysis",
-                    "spring-boot-static-analysis",
-                    true);
+    private final SpringBootStaticAnalysisProperties properties =
+            TestProperties.properties(
+                    Path.of("/workspace/repositories"),
+                    false,
+                    TestProperties.GRAPH,
+                    new SpringBootStaticAnalysisProperties.Demo(
+                            true,
+                            "Spring Boot Static Analysis",
+                            "spring-boot-static-analysis",
+                            true));
 
     @Test
     void registersAndIndexesTheConfiguredDemo() {

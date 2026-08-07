@@ -348,20 +348,13 @@ public class IndexStore {
 
     public IndexRun get(UUID id) {
         List<IndexRun> rows = jdbc.query(
-                INDEX_SELECT + " WHERE id = :id",
+                "SELECT * FROM index_runs WHERE id = :id",
                 Map.of("id", id),
                 this::map);
         if (rows.isEmpty()) {
             throw new NotFoundException("Index run " + id + " does not exist");
         }
         return rows.getFirst();
-    }
-
-    public List<IndexRun> list(UUID repositoryId) {
-        return jdbc.query(
-                INDEX_SELECT + " WHERE repository_id = :repositoryId ORDER BY started_at DESC LIMIT 100",
-                Map.of("repositoryId", repositoryId),
-                this::map);
     }
 
     private IndexRun map(java.sql.ResultSet row, int rowNumber) throws java.sql.SQLException {
@@ -386,6 +379,4 @@ public class IndexStore {
                 row.getString("error_code"),
                 row.getString("error_summary"));
     }
-
-    private static final String INDEX_SELECT = "SELECT * FROM index_runs";
 }

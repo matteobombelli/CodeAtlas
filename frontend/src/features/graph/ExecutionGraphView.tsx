@@ -351,7 +351,7 @@ export function ExecutionGraphView({
 
   return (
     <section
-      className={styles.atlas}
+      className={styles.explorer}
       aria-label={activeTarget ? `Code graph for ${activeTarget.label}` : 'Code graph'}
     >
       <header className={styles.graphHeader}>

@@ -3,7 +3,7 @@ package dev.springbootstaticanalysis.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
+import dev.springbootstaticanalysis.TestProperties;
 import dev.springbootstaticanalysis.shared.InvalidRequestException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,12 +34,6 @@ class RepositoryPathGuardTest {
     }
 
     private RepositoryPathGuard guard() {
-        return new RepositoryPathGuard(new SpringBootStaticAnalysisProperties(
-                root,
-                1_048_576,
-                10_000,
-                false,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
-                new SpringBootStaticAnalysisProperties.Graph(100, 250)));
+        return new RepositoryPathGuard(TestProperties.properties(root));
     }
 }

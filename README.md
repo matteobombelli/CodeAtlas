@@ -1,181 +1,136 @@
 # Spring Boot Static Analysis
 
-An experiment in static code navigation and change-impact analysis for Spring
-Boot repositories.
+Reads a Java/Spring Boot project from disk and builds a browsable graph of how
+its code connects: HTTP endpoints to controller methods, controllers to
+services, services to Spring Data repositories, repositories to JPA entities,
+plus the tests that reach them.
 
-Spring Boot Static Analysis reads a local repository and connects REST endpoints
-to controller methods, application calls, Spring Data access, JPA entities,
-tests, and source evidence. Search starts from an endpoint, named callable, or
-indexed Java file.
-Callable results cover functions, methods, and constructors. Each edge
-records its confidence and resolution evidence. Ambiguous calls stay visible as
-diagnostics.
+Nothing is built or executed. It parses the `.java` files with JavaParser,
+stores the result in PostgreSQL, and serves it to a React frontend.
 
-## What it reveals
+## Run it
 
-For indexed code, Spring Boot Static Analysis can show:
-
-- controller-to-service and service-to-repository calls;
-- entity reads and writes inferred from Spring Data methods;
-- constructor injection and interface relationships;
-- directly related tests and reverse change-impact paths;
-- exact source ranges and the expression supporting each edge;
-- unresolved, ambiguous, and external calls;
-- grouped search for endpoints, functions and methods, and files;
-- bounded dependency and blast-radius views for callable symbols.
-
-Graph queries have explicit depth, node, and edge limits. The default view omits
-framework plumbing and does not try to render an entire repository at once.
-
-## Run the self-analysis demo
-
-Requirements: Docker with Docker Compose.
+Requires Docker with Compose.
 
 ```bash
-docker compose up --build
+docker compose up --build     # stop with docker compose down
 ```
 
-Open <http://localhost:3000>. On a clean database, Compose mounts this checkout
-read-only, registers it as **Spring Boot Static Analysis source**, and indexes it
-in the background. The frontend opens the self-analysis graph as soon as the
-index is ready, starting at `GET /api/repositories/{repositoryId}/search`.
+Open <http://localhost:3000>. Compose mounts this checkout read-only into the
+backend, which registers it as a project and indexes it in the background; the
+frontend opens that graph once the index is ready. Later starts rescan
+incrementally, so edits you make show up after a restart.
 
-The independent `demo-app` Gradle project is **Analysis Tasks**, a small Spring
-Boot issue tracker containing projects, issues, assignment, notifications,
-comments, derived repository queries, and integration tests. It gives the
-analyzer a compact, manually verifiable target inside the self-analysis
-repository.
+Set `SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` before starting if port 3000 is
+taken.
 
-Useful commands:
+## Analysing your own project
 
-```bash
-make start
-make stop
-make test
-make clean
+The backend only opens paths under
+`SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT` (`/workspace/repositories` in
+the container). Mount your project there by adding a volume to the `backend`
+service in `compose.yaml`:
+
+```yaml
+    volumes:
+      - ./:/workspace/repositories/spring-boot-static-analysis:ro,Z
+      - /path/to/my-project:/workspace/repositories/my-project:ro,Z
 ```
 
-## Public deployment
-
-The supported public configuration is the read-only production overlay. Start
-it on a clean host with a strong, randomly generated database password:
-
-```bash
-export SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD='<strong-random-value>'
-export SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH='/'
-docker compose -f compose.yaml -f compose.prod.yaml up -d --build --wait
-```
-
-The frontend listens only on `127.0.0.1:3000` by default. Put an HTTPS reverse proxy in
-front of that address and keep the backend and PostgreSQL off the host network.
-Set `SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` before starting Compose if the
-proxy needs a different loopback port.
-If the site lives below a prefix such as `/projects/spring-boot-static-analysis/`,
-set `SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH` to that exact trailing-slash path and
-configure the proxy to strip the prefix before forwarding.
-
-The overlay sets `SPRING_BOOT_STATIC_ANALYSIS_READ_ONLY=true`. The backend then
-rejects every non-GET/HEAD/OPTIONS request under `/api/` with `405`, while the
-frontend hides project registration and indexing controls. Configure TLS,
-request limits, access-log retention, and monitoring at the reverse proxy.
-
-Back up the named PostgreSQL volume regularly. A portable logical backup can be
-created with:
-
-```bash
-docker compose -f compose.yaml -f compose.prod.yaml exec -T postgres \
-  pg_dump -U spring_boot_static_analysis -Fc spring_boot_static_analysis \
-  > spring-boot-static-analysis.dump
-```
-
-Test restoring that dump before relying on it. Do not reuse the local demo
-volume in production; the overlay defaults to the separate
-`spring-boot-static-analysis-prod-postgres` volume.
-
-## Development
-
-Requirements:
-
-- Java 21
-- Node.js 22
-- PostgreSQL 17, or Docker for Testcontainers
-
-Run the Java tests:
-
-```bash
-./gradlew test
-```
-
-Run the frontend:
-
-```bash
-cd frontend
-npm ci
-npm run dev
-```
-
-The backend expects PostgreSQL at `localhost:5432` by default. Repository API
-paths are always relative to
-`SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT`; imported projects are never
-built or executed.
-
-## Architecture
-
-Spring Boot Static Analysis is a Spring Boot modular monolith with a React
-frontend and PostgreSQL graph storage. Indexing is a bounded background job:
-
-```text
-discover → hash → parse → resolve → atomic commit
-```
-
-Full indexing builds a fresh graph. Incremental indexing compares content hashes,
-reparses changed files and direct dependants, and falls back to broad
-re-resolution when invalidation exceeds a safety cap. A commit checks the source
-snapshot again so a changing working tree is never presented as current.
-
-See [architecture](docs/architecture.md), [graph model](docs/graph-model.md),
-[indexing pipeline](docs/indexing-pipeline.md), and
-[resolution confidence](docs/resolution-confidence.md).
-
-## Measured development smoke run
-
-On the development checkout used for v0.1:
-
-| Operation | Result |
-| --- | ---: |
-| Full self-index | 101 Java files, 432 symbols, and 249 edges in 0.85 s |
-| Earlier one-file incremental edit | 2 of 84 files reparsed in about 0.09 s |
-| Earlier unchanged rescan | 0 of 84 files reparsed in about 0.08 s |
-
-These are smoke measurements, not cross-machine benchmark claims. Results vary
-with repository shape, hardware, storage, and container runtime.
-
-## Accuracy model
-
-- **Exact:** one project declaration matches the call/type evidence.
-- **Inferred:** a controlled Spring or naming convention supports the edge.
-- **Ambiguous:** more than one project target remains possible.
-- **Unresolved:** no supported target could be established.
-
-Confidence is attached to individual relationships, not reported as a vague
-repository-wide “accuracy” score.
-
-## Current limitations
-
-v0.1 targets conventional Java/Spring Boot source layouts. It does not execute
-Gradle or Maven, download dependency models, inspect bytecode, consume runtime
-traces, or promise complete reflection/lambda/proxy resolution. Kotlin, raw-SQL
-table inference, and messaging paths are out of scope.
-See [limitations](docs/limitations.md) for the full boundary.
+Restart Compose, pick **Add another project…** from the project dropdown, and
+enter the path relative to that root (`my-project`). It registers the project
+and starts indexing.
 
 ## Repository layout
 
-- `backend`: Spring Boot API, indexing engine, graph queries, and Flyway schema
-- `frontend`: React, React Flow, ELK layout, and source/evidence inspector
-- `demo-app`: independent Analysis Tasks Spring Boot analysis target
-- `docs`: architecture, confidence model, demo script, and ADRs
+- `backend` — Spring Boot API, parser, indexer, graph queries, Flyway schema
+- `frontend` — React app; React Flow + ELK for the graph, source viewer
+- `demo-app` — a small standalone Spring Boot issue tracker used as an analysis
+  target so the output can be checked by hand
+- `docs` — architecture, graph model, indexing pipeline, limitations, ADRs
+
+## Development
+
+Requires Java 21, Node 22, and either PostgreSQL 17 on `localhost:5432` or
+Docker (the tests use Testcontainers).
+
+```bash
+./gradlew test                 # backend and demo-app tests
+./gradlew :backend:bootRun     # backend on :8080
+
+cd frontend
+npm ci
+npm run dev                    # :5173, proxies /api and /actuator to :8080
+npm test                       # vitest
+npm run test:e2e               # playwright, needs the stack running
+```
+
+Backend configuration lives in `backend/src/main/resources/application.yml`;
+every setting there has a `SPRING_BOOT_STATIC_ANALYSIS_*` environment variable
+override. The frontend requests its API with paths relative to the page it was
+served from, so the same bundle works at a site root or behind a proxy prefix.
+
+The database holds only what an index run derives from the mounted source, so
+the schema is one Flyway baseline rather than a migration history. Recreate the
+volume (`docker compose down --volumes`) when that baseline changes.
+
+## What the graph shows
+
+Every edge records the source expression it came from and a confidence score
+between 0 and 1, shown as **Exact** (a matching declaration in the project) or
+**Inferred** (a Spring or naming convention supports it, e.g. a derived Spring
+Data query method). See
+[docs/resolution-confidence.md](docs/resolution-confidence.md) for the score
+per kind of evidence.
+
+Calls with more than one possible target are kept as ambiguous with the
+candidate count rather than guessing; calls into libraries become external
+terminal references; anything else stays listed as unresolved. Graph queries
+are bounded by depth and by node/edge caps (`graph.max-nodes`,
+`graph.max-edges` in `application.yml`), so a whole repository is never
+rendered at once.
+
+It handles conventional Maven/Gradle Java layouts. It does not run your build,
+resolve third-party dependencies, read bytecode, or fully resolve reflection,
+proxies, and lambdas. Kotlin, raw SQL, and messaging flows are out of scope —
+see [docs/limitations.md](docs/limitations.md).
+
+## Deploying publicly
+
+`compose.prod.yaml` adds a hardened overlay that publishes the frontend twice,
+both on loopback, for a TLS reverse proxy to sit in front of:
+
+| Entrance | Default port | Who reaches it | Mutating requests |
+| --- | --- | --- | --- |
+| public | 3000 | whoever the reverse proxy forwards | rejected with `405` |
+| local | 3001 | only someone already on the host | accepted |
+
+```bash
+export SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD='<random-value>'
+docker compose -f compose.yaml -f compose.prod.yaml up -d --build --wait
+```
+
+Point the reverse proxy at the public port only, and override
+`SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` or
+`SPRING_BOOT_STATIC_ANALYSIS_LOCAL_PORT` if those ports are taken. If the site
+is served under a prefix, have the proxy strip it and redirect the bare prefix
+to its trailing-slash form.
+
+Adding a project from the local entrance means opening it directly — on the
+host, or over an SSH tunnel:
+
+```bash
+ssh -N -L 3001:127.0.0.1:3001 user@host   # then open http://localhost:3001
+```
+
+Nginx sets the header that marks a request local, and clears it on the public
+server block, so a visitor cannot get write access by sending it themselves.
+
+The overlay keeps its database in its own volume, named by
+`SPRING_BOOT_STATIC_ANALYSIS_DB_VOLUME`. Point that at a new name when the
+Flyway baseline changes; the stack rebuilds the index on the next start.
 
 ## License
 
-[MIT](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for bundled
-dependencies with separate licenses.
+[MIT](LICENSE). Bundled dependencies are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

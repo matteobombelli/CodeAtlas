@@ -24,11 +24,16 @@ class PostgresIntegrationTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void flywayCreatesFoundationSchema() {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM app_metadata WHERE metadata_key = 'schema_version'",
-                Integer.class);
+    void flywayCreatesTheBaselineSchema() {
+        Integer tables = jdbcTemplate.queryForObject("""
+                SELECT count(*) FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name IN (
+                    'repositories', 'index_runs', 'source_files', 'code_symbols',
+                    'code_symbol_roles', 'http_endpoints', 'index_warnings',
+                    'code_relationships', 'unresolved_relationships',
+                    'external_references')
+                """, Integer.class);
 
-        assertThat(count).isEqualTo(1);
+        assertThat(tables).isEqualTo(10);
     }
 }

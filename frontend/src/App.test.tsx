@@ -64,13 +64,13 @@ afterEach(() => {
 test('opens the self-analysis project directly in the map', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
-    if (url === '/api/config') {
+    if (url === 'api/config') {
       return json({ readOnly: true })
     }
-    if (url === '/api/repositories') {
+    if (url === 'api/repositories') {
       return json(projects)
     }
-    if (url === '/api/repositories/self-project/http-endpoints') {
+    if (url === 'api/repositories/self-project/http-endpoints') {
       return json([
         {
           id: 'endpoint-search',
@@ -113,13 +113,13 @@ test('opens the self-analysis project directly in the map', async () => {
 test('switches the map when another indexed project is selected', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
-    if (url === '/api/config') {
+    if (url === 'api/config') {
       return json({ readOnly: true })
     }
-    if (url === '/api/repositories') {
+    if (url === 'api/repositories') {
       return json(projects)
     }
-    if (url === '/api/repositories/self-project/http-endpoints') {
+    if (url === 'api/repositories/self-project/http-endpoints') {
       return json([
         {
           id: 'endpoint-search',
@@ -128,7 +128,7 @@ test('switches the map when another indexed project is selected', async () => {
         },
       ])
     }
-    if (url === '/api/repositories/other-project/http-endpoints') {
+    if (url === 'api/repositories/other-project/http-endpoints') {
       return json([
         {
           id: 'endpoint-issues',
@@ -154,10 +154,10 @@ test('switches the map when another indexed project is selected', async () => {
 test('opens the code browser for an indexed project with no endpoints', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
-    if (url === '/api/config') {
+    if (url === 'api/config') {
       return json({ readOnly: true })
     }
-    if (url === '/api/repositories') {
+    if (url === 'api/repositories') {
       return json([
         {
           id: 'library-project',
@@ -187,10 +187,10 @@ test('registers and indexes another local project from the selector', async () =
       method: init?.method ?? 'GET',
       body: typeof init?.body === 'string' ? init.body : undefined,
     })
-    if (url === '/api/config') {
+    if (url === 'api/config') {
       return json({ readOnly: false })
     }
-    if (url === '/api/repositories' && init?.method === 'POST') {
+    if (url === 'api/repositories' && init?.method === 'POST') {
       created = true
       return json({
         id: 'new-project',
@@ -199,10 +199,10 @@ test('registers and indexes another local project from the selector', async () =
         status: 'REGISTERED',
       })
     }
-    if (url === '/api/repositories/new-project/index?mode=FULL') {
+    if (url === 'api/repositories/new-project/index?mode=FULL') {
       return json({ id: 'index-run' })
     }
-    if (url === '/api/repositories') {
+    if (url === 'api/repositories') {
       return json(created
         ? [
             ...projects,
@@ -234,7 +234,7 @@ test('registers and indexes another local project from the selector', async () =
   await waitFor(() => expect(picker).toHaveValue('new-project'))
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(requests).toContainEqual({
-    url: '/api/repositories',
+    url: 'api/repositories',
     method: 'POST',
     body: JSON.stringify({
       displayName: 'demo-app',
@@ -242,7 +242,7 @@ test('registers and indexes another local project from the selector', async () =
     }),
   })
   expect(requests).toContainEqual({
-    url: '/api/repositories/new-project/index?mode=FULL',
+    url: 'api/repositories/new-project/index?mode=FULL',
     method: 'POST',
     body: undefined,
   })

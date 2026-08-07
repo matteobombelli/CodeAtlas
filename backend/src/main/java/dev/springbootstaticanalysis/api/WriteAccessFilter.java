@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Set;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,20 +15,18 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Rejects every mutating API request when a deployment is public and read-only. */
+/** Rejects every mutating API request that {@link WriteAccess} does not admit. */
 @Component
-@ConditionalOnProperty(
-        prefix = "spring-boot-static-analysis",
-        name = "read-only",
-        havingValue = "true")
-public class ReadOnlyModeFilter extends OncePerRequestFilter {
+public class WriteAccessFilter extends OncePerRequestFilter {
 
     private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
     private static final String ALLOWED_METHODS = "GET, HEAD, OPTIONS";
 
+    private final WriteAccess writeAccess;
     private final ObjectMapper objectMapper;
 
-    public ReadOnlyModeFilter(ObjectMapper objectMapper) {
+    public WriteAccessFilter(WriteAccess writeAccess, ObjectMapper objectMapper) {
+        this.writeAccess = writeAccess;
         this.objectMapper = objectMapper;
     }
 
@@ -43,7 +40,7 @@ public class ReadOnlyModeFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
-        if (SAFE_METHODS.contains(request.getMethod())) {
+        if (SAFE_METHODS.contains(request.getMethod()) || writeAccess.allows(request)) {
             chain.doFilter(request, response);
             return;
         }

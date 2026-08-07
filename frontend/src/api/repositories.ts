@@ -1,5 +1,3 @@
-import { apiUrl } from './http'
-
 export type Repository = {
   id: string
   displayName: string
@@ -83,8 +81,12 @@ export type ClientConfig = {
   readOnly: boolean
 }
 
+/**
+ * Paths are relative to the served page, so the same bundle works at the site
+ * root and behind a reverse proxy that adds a prefix.
+ */
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(path), init)
+  const response = await fetch(path, init)
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as { detail?: string } | null
     throw new Error(problem?.detail ?? `Request failed with ${response.status}`)
@@ -93,35 +95,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const repositoryApi = {
-  config: () => request<ClientConfig>('/api/config'),
-  list: () => request<Repository[]>('/api/repositories'),
+  config: () => request<ClientConfig>('api/config'),
+  list: () => request<Repository[]>('api/repositories'),
   create: (displayName: string, relativePath: string) =>
-    request<Repository>('/api/repositories', {
+    request<Repository>('api/repositories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ displayName, relativePath }),
     }),
   index: (id: string) =>
-    request<unknown>(`/api/repositories/${id}/index?mode=FULL`, {
+    request<unknown>(`api/repositories/${id}/index?mode=FULL`, {
       method: 'POST',
     }),
   endpoints: (id: string) =>
-    request<HttpEndpoint[]>(`/api/repositories/${id}/http-endpoints`),
+    request<HttpEndpoint[]>(`api/repositories/${id}/http-endpoints`),
   endpointGraph: (repositoryId: string, endpointId: string, maxDepth = 4) =>
     request<ExecutionGraph>(
-      `/api/repositories/${repositoryId}/graphs/endpoint/${endpointId}?maxDepth=${maxDepth}`,
+      `api/repositories/${repositoryId}/graphs/endpoint/${endpointId}?maxDepth=${maxDepth}`,
     ),
   symbolGraph: (repositoryId: string, symbolId: string, maxDepth = 4) =>
     request<ExecutionGraph>(
-      `/api/repositories/${repositoryId}/graphs/symbol/${symbolId}?maxDepth=${maxDepth}`,
+      `api/repositories/${repositoryId}/graphs/symbol/${symbolId}?maxDepth=${maxDepth}`,
     ),
   fileGraph: (repositoryId: string, fileId: string) =>
     request<ExecutionGraph>(
-      `/api/repositories/${repositoryId}/graphs/file/${fileId}`,
+      `api/repositories/${repositoryId}/graphs/file/${fileId}`,
     ),
   blastRadius: (repositoryId: string, symbolId: string, maxDepth = 4) =>
     request<ExecutionGraph>(
-      `/api/repositories/${repositoryId}/graphs/blast-radius/${symbolId}?maxDepth=${maxDepth}`,
+      `api/repositories/${repositoryId}/graphs/blast-radius/${symbolId}?maxDepth=${maxDepth}`,
     ),
   source: (
     repositoryId: string,
@@ -135,13 +137,13 @@ export const repositoryApi = {
       endLine: String(endLine),
     })
     return request<SourceExcerpt>(
-      `/api/repositories/${repositoryId}/source?${query.toString()}`,
+      `api/repositories/${repositoryId}/source?${query.toString()}`,
     )
   },
   search: (repositoryId: string, query: string) => {
     const parameters = new URLSearchParams({ q: query })
     return request<CodeSearchResponse>(
-      `/api/repositories/${repositoryId}/search?${parameters.toString()}`,
+      `api/repositories/${repositoryId}/search?${parameters.toString()}`,
     )
   },
 }

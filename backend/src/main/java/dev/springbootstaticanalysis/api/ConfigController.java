@@ -1,24 +1,24 @@
 package dev.springbootstaticanalysis.api;
 
-import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Publishes the deployment mode needed to hide controls the API will refuse. */
+/** Tells the frontend whether this entrance may use the mutating endpoints. */
 @RestController
 @RequestMapping("/api/config")
 public class ConfigController {
 
-    private final SpringBootStaticAnalysisProperties properties;
+    private final WriteAccess writeAccess;
 
-    public ConfigController(SpringBootStaticAnalysisProperties properties) {
-        this.properties = properties;
+    public ConfigController(WriteAccess writeAccess) {
+        this.writeAccess = writeAccess;
     }
 
     @GetMapping
-    ClientConfig get() {
-        return new ClientConfig(properties.readOnly());
+    ClientConfig get(HttpServletRequest request) {
+        return new ClientConfig(!writeAccess.allows(request));
     }
 
     record ClientConfig(boolean readOnly) {

@@ -74,14 +74,6 @@ public class IndexingService {
         return run;
     }
 
-    public IndexRun get(UUID runId) {
-        return indexStore.get(runId);
-    }
-
-    public List<IndexRun> list(UUID repositoryId) {
-        return indexStore.list(repositoryId);
-    }
-
     private void execute(UUID repositoryId, UUID runId, IndexMode mode) {
         try {
             Path root = repositoryStore.canonicalPath(repositoryId);

@@ -3,7 +3,7 @@ package dev.springbootstaticanalysis.indexing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
+import dev.springbootstaticanalysis.TestProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Assumptions;
@@ -58,12 +58,6 @@ class SourceFileDiscoveryTest {
     }
 
     private SourceFileDiscovery discovery() {
-        return new SourceFileDiscovery(new SpringBootStaticAnalysisProperties(
-                root,
-                1_048_576,
-                10_000,
-                false,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
-                new SpringBootStaticAnalysisProperties.Graph(100, 250)));
+        return new SourceFileDiscovery(TestProperties.properties(root));
     }
 }

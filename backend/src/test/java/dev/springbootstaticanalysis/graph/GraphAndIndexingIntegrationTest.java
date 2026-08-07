@@ -12,6 +12,7 @@ import dev.springbootstaticanalysis.indexing.IndexStore;
 import dev.springbootstaticanalysis.indexing.IndexingService;
 import dev.springbootstaticanalysis.repository.RegisteredRepository;
 import dev.springbootstaticanalysis.repository.RepositoryService;
+import dev.springbootstaticanalysis.TestProperties;
 import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -207,13 +208,11 @@ class GraphAndIndexingIntegrationTest {
     }
 
     private SpringBootStaticAnalysisProperties properties(int maxNodes, int maxEdges) {
-        return new SpringBootStaticAnalysisProperties(
+        return TestProperties.properties(
                 ROOT,
-                1_048_576,
-                10_000,
                 false,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
-                new SpringBootStaticAnalysisProperties.Graph(maxNodes, maxEdges));
+                new SpringBootStaticAnalysisProperties.Graph(maxNodes, maxEdges),
+                TestProperties.NO_DEMO);
     }
 
     private static void writeSampleRepository() throws Exception {

@@ -63,12 +63,6 @@ public class RepositoryController {
         return ResponseEntity.accepted().body(run);
     }
 
-    @GetMapping("/{repositoryId}/index-runs")
-    List<IndexRun> indexRuns(@PathVariable UUID repositoryId) {
-        repositoryService.get(repositoryId);
-        return indexingService.list(repositoryId);
-    }
-
     public record CreateRepositoryRequest(String displayName, String relativePath) {
     }
 }

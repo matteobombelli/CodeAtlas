@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
+import dev.springbootstaticanalysis.TestProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -40,12 +40,6 @@ class RepositoryServiceTest {
     }
 
     private RepositoryPathGuard guard() {
-        return new RepositoryPathGuard(new SpringBootStaticAnalysisProperties(
-                root,
-                1_048_576,
-                10_000,
-                false,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
-                new SpringBootStaticAnalysisProperties.Graph(100, 250)));
+        return new RepositoryPathGuard(TestProperties.properties(root));
     }
 }
