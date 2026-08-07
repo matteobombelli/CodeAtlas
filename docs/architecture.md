@@ -30,10 +30,9 @@ The bounded Java executor runs one CPU-intensive index at a time by default;
 there is no distributed job infrastructure.
 
 The frontend is a separate TypeScript application that requests the API with
-paths relative to the page it was served from. During development Vite proxies
-backend paths; the production Nginx image performs the same routing, from two
-server blocks: the entrance a reverse proxy publishes, and a loopback-only one
-that marks its requests as local so the backend accepts mutations from them.
+paths relative to the page it was served from, so one bundle works at a site
+root or behind a proxy prefix. During development Vite proxies backend paths;
+the production Nginx image performs the same routing.
 
 See the architecture decision records in [`docs/adr`](adr/), the
 [graph model](graph-model.md), and the [indexing pipeline](indexing-pipeline.md).

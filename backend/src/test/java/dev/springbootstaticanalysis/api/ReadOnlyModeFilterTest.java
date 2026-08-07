@@ -7,9 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.springbootstaticanalysis.TestProperties;
 import jakarta.servlet.FilterChain;
-import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -17,17 +15,16 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-class WriteAccessFilterTest {
+class ReadOnlyModeFilterTest {
 
-    private final WriteAccessFilter readOnlyFilter = filter(true);
-    private final WriteAccessFilter localFilter = filter(false);
+    private final ReadOnlyModeFilter filter = new ReadOnlyModeFilter(new ObjectMapper());
 
     @Test
-    void rejectsMutatingApiRequestsFromThePublicEntrance() throws Exception {
+    void rejectsMutatingApiRequests() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 
-        readOnlyFilter.doFilter(request("DELETE", "/api/repositories/abc"), response, chain);
+        filter.doFilter(request("DELETE", "/api/repositories/abc"), response, chain);
 
         assertThat(response.getStatus()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED.value());
         assertThat(response.getHeader(HttpHeaders.ALLOW)).isEqualTo("GET, HEAD, OPTIONS");
@@ -38,35 +35,11 @@ class WriteAccessFilterTest {
     }
 
     @Test
-    void acceptsMutatingApiRequestsFromTheLocalEntrance() throws Exception {
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
-        MockHttpServletRequest request = request("POST", "/api/repositories");
-        request.addHeader(WriteAccess.LOCAL_ENTRANCE_HEADER, "1");
-
-        readOnlyFilter.doFilter(request, response, chain);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        verify(chain).doFilter(any(), any());
-    }
-
-    @Test
-    void acceptsMutatingApiRequestsWhenTheDeploymentIsNotReadOnly() throws Exception {
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        FilterChain chain = mock(FilterChain.class);
-
-        localFilter.doFilter(request("POST", "/api/repositories"), response, chain);
-
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
-        verify(chain).doFilter(any(), any());
-    }
-
-    @Test
     void allowsApiReads() throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 
-        readOnlyFilter.doFilter(request("GET", "/api/repositories"), response, chain);
+        filter.doFilter(request("GET", "/api/repositories"), response, chain);
 
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         verify(chain).doFilter(any(), any());
@@ -77,20 +50,10 @@ class WriteAccessFilterTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FilterChain chain = mock(FilterChain.class);
 
-        readOnlyFilter.doFilter(request("POST", "/actuator/health"), response, chain);
+        filter.doFilter(request("POST", "/actuator/health"), response, chain);
 
         assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
         verify(chain).doFilter(any(), any());
-    }
-
-    private WriteAccessFilter filter(boolean readOnly) {
-        return new WriteAccessFilter(
-                new WriteAccess(TestProperties.properties(
-                        Path.of("/workspace/repositories"),
-                        readOnly,
-                        TestProperties.GRAPH,
-                        TestProperties.NO_DEMO)),
-                new ObjectMapper());
     }
 
     private MockHttpServletRequest request(String method, String uri) {

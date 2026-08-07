@@ -8,38 +8,73 @@ plus the tests that reach them.
 Nothing is built or executed. It parses the `.java` files with JavaParser,
 stores the result in PostgreSQL, and serves it to a React frontend.
 
-## Run it
+## Run it locally
 
-Requires Docker with Compose.
+Requires Docker with Compose. From a clone of this repository:
 
 ```bash
-docker compose up --build     # stop with docker compose down
+docker compose up --build
 ```
 
-Open <http://localhost:3000>. Compose mounts this checkout read-only into the
-backend, which registers it as a project and indexes it in the background; the
-frontend opens that graph once the index is ready. Later starts rescan
-incrementally, so edits you make show up after a restart.
+Open <http://localhost:3000>. That is the whole setup — Compose starts
+PostgreSQL, the backend, and the frontend, mounts this checkout read-only into
+the backend, registers it as a project, and indexes it in the background. The
+map opens on its own once the first index finishes, which takes a few seconds.
 
-Set `SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` before starting if port 3000 is
-taken.
+```bash
+docker compose down              # stop
+docker compose down --volumes    # stop and discard the index
+```
 
-## Analysing your own project
+Later starts rescan incrementally, so edits you make to this repository show up
+after a restart. If port 3000 is taken, set a different one first:
 
-The backend only opens paths under
-`SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT` (`/workspace/repositories` in
-the container). Mount your project there by adding a volume to the `backend`
-service in `compose.yaml`:
+```bash
+SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT=3010 docker compose up --build
+```
+
+A local run is fully writable: the **Project** dropdown includes **Add another
+project…**, and the API accepts registration and indexing requests. A public
+deployment is not — see [Deploying publicly](#deploying-publicly).
+
+## Analyse your own project
+
+The backend only opens paths beneath
+`SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT`, which is
+`/workspace/repositories` inside the container. A project has to be mounted
+there before it can be registered; this is what stops the API from reading
+arbitrary paths on your machine.
+
+**1. Mount it.** Add a line to the `backend` service's `volumes:` in
+`compose.yaml`, mapping a directory on your machine to a name under the
+repositories root:
 
 ```yaml
     volumes:
       - ./:/workspace/repositories/spring-boot-static-analysis:ro,Z
-      - /path/to/my-project:/workspace/repositories/my-project:ro,Z
+      - /home/you/code/my-project:/workspace/repositories/my-project:ro,Z
 ```
 
-Restart Compose, pick **Add another project…** from the project dropdown, and
-enter the path relative to that root (`my-project`). It registers the project
-and starts indexing.
+Mount a parent directory instead if you want several projects available without
+editing Compose again:
+
+```yaml
+      - /home/you/code:/workspace/repositories/code:ro,Z
+```
+
+**2. Restart.** `docker compose up --build -d` — new mounts need the container
+recreated.
+
+**3. Register it.** Open the app, choose **Add another project…** from the
+**Project** dropdown, and enter the path *relative to the repositories root* —
+`my-project`, or `code/my-project` if you mounted the parent. The last path
+segment becomes the display name. It registers the project, starts a full
+index, and switches to it; the dropdown then holds every indexed project.
+
+The path must be a readable directory that exists under the root, or
+registration is refused. Anything with a conventional Maven or Gradle layout
+works — `src/main/java` and `src/test/java` are what get discovered. Kotlin
+files, build output, and generated sources are skipped.
 
 ## Repository layout
 
@@ -72,7 +107,7 @@ served from, so the same bundle works at a site root or behind a proxy prefix.
 
 The database holds only what an index run derives from the mounted source, so
 the schema is one Flyway baseline rather than a migration history. Recreate the
-volume (`docker compose down --volumes`) when that baseline changes.
+volume when that baseline changes.
 
 ## What the graph shows
 
@@ -97,34 +132,20 @@ see [docs/limitations.md](docs/limitations.md).
 
 ## Deploying publicly
 
-`compose.prod.yaml` adds a hardened overlay that publishes the frontend twice,
-both on loopback, for a TLS reverse proxy to sit in front of:
-
-| Entrance | Default port | Who reaches it | Mutating requests |
-| --- | --- | --- | --- |
-| public | 3000 | whoever the reverse proxy forwards | rejected with `405` |
-| local | 3001 | only someone already on the host | accepted |
+`compose.prod.yaml` adds a read-only overlay: the backend answers `405` to
+anything under `/api/` that is not a GET, HEAD, or OPTIONS, and the frontend
+hides the registration and indexing controls. Visitors browse whichever
+projects the deployment itself mounted and indexed; adding a project stays a
+local activity.
 
 ```bash
 export SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD='<random-value>'
 docker compose -f compose.yaml -f compose.prod.yaml up -d --build --wait
 ```
 
-Point the reverse proxy at the public port only, and override
-`SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` or
-`SPRING_BOOT_STATIC_ANALYSIS_LOCAL_PORT` if those ports are taken. If the site
-is served under a prefix, have the proxy strip it and redirect the bare prefix
-to its trailing-slash form.
-
-Adding a project from the local entrance means opening it directly — on the
-host, or over an SSH tunnel:
-
-```bash
-ssh -N -L 3001:127.0.0.1:3001 user@host   # then open http://localhost:3001
-```
-
-Nginx sets the header that marks a request local, and clears it on the public
-server block, so a visitor cannot get write access by sending it themselves.
+Only the frontend is published, on `127.0.0.1`; put an HTTPS reverse proxy in
+front of it. If the site is served under a prefix, have the proxy strip it and
+redirect the bare prefix to its trailing-slash form.
 
 The overlay keeps its database in its own volume, named by
 `SPRING_BOOT_STATIC_ANALYSIS_DB_VOLUME`. Point that at a new name when the
