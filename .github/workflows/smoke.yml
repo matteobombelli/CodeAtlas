@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -23,3 +26,77 @@ jobs:
         working-directory: frontend
       - if: always()
         run: docker compose down --volumes --remove-orphans
+
+  prod-smoke:
+    runs-on: ubuntu-latest
+    env:
+      SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD: smoke-only-password
+      SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH: /projects/spring-boot-static-analysis/
+      PREFIX: /projects/spring-boot-static-analysis
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: docker compose -f compose.yaml -f compose.prod.yaml up --build --wait -d
+
+      - name: Start prefix-stripping proxy
+        run: |
+          cat > Caddyfile <<'EOF'
+          {
+            admin off
+          }
+
+          :8080 {
+            redir /projects/spring-boot-static-analysis /projects/spring-boot-static-analysis/ 308
+
+            handle_path /projects/spring-boot-static-analysis/* {
+              reverse_proxy 127.0.0.1:3000
+            }
+          }
+          EOF
+          docker run -d --name smoke-proxy --network host \
+            -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          for _ in $(seq 30); do
+            curl -fsS "http://127.0.0.1:8080$PREFIX/" >/dev/null && break
+            sleep 2
+          done
+
+      - name: Verify read-only API
+        run: |
+          curl -fsS "http://127.0.0.1:8080$PREFIX/api/config" \
+            | grep -q '"readOnly":true'
+          status=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+            "http://127.0.0.1:8080$PREFIX/api/repositories/00000000-0000-0000-0000-000000000000")
+          test "$status" = "405"
+          status=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            -H 'Content-Type: application/json' \
+            -d '{"displayName":"x","relativePath":"x"}' \
+            "http://127.0.0.1:8080$PREFIX/api/repositories")
+          test "$status" = "405"
+
+      - name: Verify prefixed assets
+        run: |
+          curl -fsS "http://127.0.0.1:8080$PREFIX/" \
+            | grep -o 'src="[^"]*"' | grep -q "$PREFIX/assets/"
+          asset=$(curl -fsS "http://127.0.0.1:8080$PREFIX/" \
+            | grep -o "$PREFIX/assets/[A-Za-z0-9._-]*\.js" | head -1)
+          curl -fsS "http://127.0.0.1:8080$asset" >/dev/null
+
+      - run: npm run test:e2e
+        working-directory: frontend
+        env:
+          SPRING_BOOT_STATIC_ANALYSIS_E2E_URL: http://127.0.0.1:8080/projects/spring-boot-static-analysis/
+          SPRING_BOOT_STATIC_ANALYSIS_E2E_READ_ONLY: "true"
+
+      - if: always()
+        run: |
+          docker logs smoke-proxy || true
+          docker rm -f smoke-proxy || true
+          docker compose -f compose.yaml -f compose.prod.yaml down --volumes --remove-orphans

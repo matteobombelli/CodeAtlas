@@ -5,6 +5,7 @@ import dev.springbootstaticanalysis.graph.GraphEdge.Evidence;
 import dev.springbootstaticanalysis.graph.GraphNode.SourceLocation;
 import dev.springbootstaticanalysis.shared.InvalidRequestException;
 import dev.springbootstaticanalysis.shared.NotFoundException;
+import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -19,15 +20,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class GraphStore {
 
-    private static final int DEFAULT_NODE_LIMIT = 100;
-    private static final int DEFAULT_EDGE_LIMIT = 250;
     private static final Set<String> TRAVERSABLE =
             Set.of("CALLS", "READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY");
 
     private final NamedParameterJdbcTemplate jdbc;
+    private final int nodeLimit;
+    private final int edgeLimit;
 
-    public GraphStore(NamedParameterJdbcTemplate jdbc) {
+    public GraphStore(
+            NamedParameterJdbcTemplate jdbc,
+            SpringBootStaticAnalysisProperties properties) {
         this.jdbc = jdbc;
+        this.nodeLimit = Math.max(2, properties.graph().maxNodes());
+        this.edgeLimit = Math.max(1, properties.graph().maxEdges());
     }
 
     public ExecutionGraph endpointGraph(
@@ -39,7 +44,7 @@ public class GraphStore {
         validateDepth(maxDepth);
         EndpointRoot root = endpointRoot(repositoryId, endpointId);
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
 
         String endpointNodeId = "endpoint:" + root.endpointId();
         nodes.put(endpointNodeId, new GraphNode(
@@ -53,7 +58,7 @@ public class GraphStore {
 
         GraphNode controllerMethod = symbolNode(repositoryId, root.methodId());
         nodes.put(controllerMethod.id(), controllerMethod);
-        edges.add(new GraphEdge(
+        putEdge(edges, new GraphEdge(
                 "handles:" + root.endpointId(),
                 endpointNodeId,
                 controllerMethod.id(),
@@ -75,7 +80,7 @@ public class GraphStore {
         return new ExecutionGraph(
                 endpointNodeId,
                 List.copyOf(nodes.values()),
-                edges,
+                List.copyOf(edges.values()),
                 warnings,
                 traversal.truncated(),
                 traversal.reason());
@@ -89,7 +94,7 @@ public class GraphStore {
             boolean includeExternal) {
         validateDepth(maxDepth);
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
         GraphNode root = symbolNode(repositoryId, symbolId);
         nodes.put(root.id(), root);
 
@@ -105,7 +110,7 @@ public class GraphStore {
         return new ExecutionGraph(
                 root.id(),
                 List.copyOf(nodes.values()),
-                edges,
+                List.copyOf(edges.values()),
                 warnings,
                 traversal.truncated(),
                 traversal.reason());
@@ -115,7 +120,7 @@ public class GraphStore {
         FileRoot file = fileRoot(repositoryId, fileId);
         String rootId = "file:" + file.id();
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
         String fileName = Path.of(file.path()).getFileName().toString();
         nodes.put(rootId, new GraphNode(
                 rootId,
@@ -126,10 +131,13 @@ public class GraphStore {
                 new SourceLocation(file.path(), 1, file.lineCount()),
                 List.of("FILE")));
 
-        for (UUID symbolId : symbolsForFile(repositoryId, fileId)) {
+        int symbolLimit = Math.min(nodeLimit - 1, edgeLimit);
+        List<UUID> symbolIds = symbolsForFile(repositoryId, fileId, symbolLimit + 1);
+        boolean truncated = symbolIds.size() > symbolLimit;
+        for (UUID symbolId : symbolIds.stream().limit(symbolLimit).toList()) {
             GraphNode symbol = symbolNode(repositoryId, symbolId);
             nodes.put(symbol.id(), symbol);
-            edges.add(new GraphEdge(
+            putEdge(edges, new GraphEdge(
                     "declares:" + file.id() + ":" + symbolId,
                     rootId,
                     symbol.id(),
@@ -145,10 +153,16 @@ public class GraphStore {
         return new ExecutionGraph(
                 rootId,
                 List.copyOf(nodes.values()),
-                List.copyOf(edges),
-                List.of(),
-                false,
-                null);
+                List.copyOf(edges.values()),
+                truncated
+                        ? List.of(new GraphWarning(
+                                "TRUNCATED",
+                                "File graph stopped at the configured graph limit."))
+                        : List.of(),
+                truncated,
+                truncated
+                        ? (nodeLimit - 1 <= edgeLimit ? "NODE_LIMIT" : "EDGE_LIMIT")
+                        : null);
     }
 
     public ExecutionGraph blastRadius(
@@ -160,12 +174,20 @@ public class GraphStore {
             throw new InvalidRequestException("maxDepth must be between 1 and 8");
         }
         LinkedHashMap<String, GraphNode> nodes = new LinkedHashMap<>();
-        List<GraphEdge> edges = new ArrayList<>();
+        LinkedHashMap<String, GraphEdge> edges = new LinkedHashMap<>();
         List<GraphWarning> warnings = new ArrayList<>();
         GraphNode root = symbolNode(repositoryId, symbolId);
         nodes.put(root.id(), root);
+        boolean truncated = false;
+        String reason = null;
         for (EndpointRoot endpoint : endpointsFor(repositoryId, symbolId)) {
             String endpointNodeId = "endpoint:" + endpoint.endpointId();
+            String edgeId = "affected:" + endpoint.endpointId();
+            if (nodeLimitReached(nodes, endpointNodeId) || edgeLimitReached(edges, edgeId)) {
+                truncated = true;
+                reason = nodeLimitReached(nodes, endpointNodeId) ? "NODE_LIMIT" : "EDGE_LIMIT";
+                break;
+            }
             nodes.put(endpointNodeId, new GraphNode(
                     endpointNodeId,
                     "ENDPOINT",
@@ -175,8 +197,8 @@ public class GraphStore {
                     new SourceLocation(
                             endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
                     List.of("ENDPOINT")));
-            edges.add(new GraphEdge(
-                    "affected:" + endpoint.endpointId(),
+            putEdge(edges, new GraphEdge(
+                    edgeId,
                     endpointNodeId,
                     root.id(),
                     "REACHES",
@@ -189,18 +211,28 @@ public class GraphStore {
         }
         ArrayDeque<Visit> queue = new ArrayDeque<>();
         queue.add(new Visit(symbolId, 0));
-        boolean truncated = false;
-        String reason = null;
 
-        for (StoredEdge edge : outgoing(repositoryId, symbolId)) {
-            if (Set.of("READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY").contains(edge.kind())) {
+        if (!truncated) {
+            for (StoredEdge edge : outgoing(repositoryId, symbolId)) {
+                if (!Set.of("READS_ENTITY", "WRITES_ENTITY", "MANAGES_ENTITY")
+                        .contains(edge.kind())) {
+                    continue;
+                }
                 GraphNode target = symbolNode(repositoryId, edge.targetId());
+                GraphEdge graphEdge = edge.toGraphEdge();
+                if (nodeLimitReached(nodes, target.id())
+                        || edgeLimitReached(edges, graphEdge.id())) {
+                    truncated = true;
+                    reason = nodeLimitReached(nodes, target.id())
+                            ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    break;
+                }
                 nodes.putIfAbsent(target.id(), target);
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, graphEdge);
             }
         }
 
-        while (!queue.isEmpty()) {
+        while (!queue.isEmpty() && !truncated) {
             Visit visit = queue.removeFirst();
             if (visit.depth() >= maxDepth) {
                 continue;
@@ -210,17 +242,29 @@ public class GraphStore {
                         || (!includeUncertain && edge.confidence() < 0.70)) {
                     continue;
                 }
-                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                GraphNode source = symbolNode(repositoryId, edge.sourceId());
+                GraphEdge graphEdge = edge.toGraphEdge();
+                if (nodeLimitReached(nodes, source.id())
+                        || edgeLimitReached(edges, graphEdge.id())) {
                     truncated = true;
-                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    reason = nodeLimitReached(nodes, source.id())
+                            ? "NODE_LIMIT" : "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
-                GraphNode source = symbolNode(repositoryId, edge.sourceId());
                 boolean unseen = nodes.putIfAbsent(source.id(), source) == null;
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, graphEdge);
                 for (EndpointRoot endpoint : endpointsFor(repositoryId, edge.sourceId())) {
                     String endpointNodeId = "endpoint:" + endpoint.endpointId();
+                    String edgeId = "affected:" + endpoint.endpointId();
+                    if (nodeLimitReached(nodes, endpointNodeId)
+                            || edgeLimitReached(edges, edgeId)) {
+                        truncated = true;
+                        reason = nodeLimitReached(nodes, endpointNodeId)
+                                ? "NODE_LIMIT" : "EDGE_LIMIT";
+                        queue.clear();
+                        break;
+                    }
                     nodes.putIfAbsent(endpointNodeId, new GraphNode(
                             endpointNodeId,
                             "ENDPOINT",
@@ -230,8 +274,8 @@ public class GraphStore {
                             new SourceLocation(
                                     endpoint.sourcePath(), endpoint.startLine(), endpoint.endLine()),
                             List.of("ENDPOINT")));
-                    edges.add(new GraphEdge(
-                            "affected:" + endpoint.endpointId(),
+                    putEdge(edges, new GraphEdge(
+                            edgeId,
                             endpointNodeId,
                             source.id(),
                             "REACHES",
@@ -241,6 +285,9 @@ public class GraphStore {
                             new Evidence(
                                     endpoint.sourcePath(), endpoint.startLine(), 1,
                                     "Endpoint reaches the selected symbol")));
+                }
+                if (truncated) {
+                    break;
                 }
                 if (unseen && !source.roles().contains("TEST")) {
                     queue.addLast(new Visit(edge.sourceId(), visit.depth() + 1));
@@ -257,7 +304,7 @@ public class GraphStore {
         return new ExecutionGraph(
                 symbolId.toString(),
                 List.copyOf(nodes.values()),
-                edges,
+                List.copyOf(edges.values()),
                 warnings,
                 truncated,
                 reason);
@@ -270,7 +317,7 @@ public class GraphStore {
             boolean includeUncertain,
             boolean includeExternal,
             LinkedHashMap<String, GraphNode> nodes,
-            List<GraphEdge> edges) {
+            LinkedHashMap<String, GraphEdge> edges) {
         ArrayDeque<Visit> queue = new ArrayDeque<>();
         queue.add(new Visit(rootSymbolId, 0));
         boolean truncated = false;
@@ -285,43 +332,45 @@ public class GraphStore {
                         || (!includeUncertain && edge.confidence() < 0.70)) {
                     continue;
                 }
-                if (edges.size() >= DEFAULT_EDGE_LIMIT) {
+                GraphEdge graphEdge = edge.toGraphEdge();
+                if (edgeLimitReached(edges, graphEdge.id())) {
                     truncated = true;
                     reason = "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
                 GraphNode target = symbolNode(repositoryId, edge.targetId());
-                if (!nodes.containsKey(target.id()) && nodes.size() >= DEFAULT_NODE_LIMIT) {
+                if (nodeLimitReached(nodes, target.id())) {
                     truncated = true;
                     reason = "NODE_LIMIT";
                     queue.clear();
                     break;
                 }
                 boolean unseen = nodes.putIfAbsent(target.id(), target) == null;
-                edges.add(edge.toGraphEdge());
+                putEdge(edges, graphEdge);
                 if (unseen) {
                     queue.addLast(new Visit(edge.targetId(), visit.depth() + 1));
                 }
             }
-            if (!includeExternal) {
+            if (!includeExternal || truncated) {
                 continue;
             }
             for (StoredExternal reference : external(repositoryId, visit.symbolId())) {
-                if (nodes.size() >= DEFAULT_NODE_LIMIT || edges.size() >= DEFAULT_EDGE_LIMIT) {
+                String id = "external:" + reference.id();
+                String edgeId = "external-edge:" + reference.id();
+                if (nodeLimitReached(nodes, id) || edgeLimitReached(edges, edgeId)) {
                     truncated = true;
-                    reason = nodes.size() >= DEFAULT_NODE_LIMIT ? "NODE_LIMIT" : "EDGE_LIMIT";
+                    reason = nodeLimitReached(nodes, id) ? "NODE_LIMIT" : "EDGE_LIMIT";
                     queue.clear();
                     break;
                 }
-                String id = "external:" + reference.id();
                 nodes.putIfAbsent(id, new GraphNode(
                         id, "EXTERNAL", "EXTERNAL", reference.displayName(),
                         "External or unavailable dependency",
                         new SourceLocation(reference.path(), reference.line(), reference.line()),
                         List.of("EXTERNAL")));
-                edges.add(new GraphEdge(
-                        "external-edge:" + reference.id(),
+                putEdge(edges, new GraphEdge(
+                        edgeId,
                         visit.symbolId().toString(),
                         id,
                         "CALLS",
@@ -378,7 +427,7 @@ public class GraphStore {
         return values.getFirst();
     }
 
-    private List<UUID> symbolsForFile(UUID repositoryId, UUID fileId) {
+    private List<UUID> symbolsForFile(UUID repositoryId, UUID fileId, int limit) {
         return jdbc.query("""
                 SELECT id
                 FROM code_symbols
@@ -390,7 +439,7 @@ public class GraphStore {
                 """, Map.of(
                         "repositoryId", repositoryId,
                         "fileId", fileId,
-                        "limit", DEFAULT_NODE_LIMIT - 1),
+                        "limit", limit),
                 (row, number) -> row.getObject("id", UUID.class));
     }
 
@@ -553,6 +602,18 @@ public class GraphStore {
                 WHERE repository_id = :repositoryId AND source_symbol_id IN (:symbolIds)
                 """, Map.of("repositoryId", repositoryId, "symbolIds", symbolIds), Integer.class);
         return count == null ? 0 : count;
+    }
+
+    private boolean nodeLimitReached(Map<String, GraphNode> nodes, String nodeId) {
+        return !nodes.containsKey(nodeId) && nodes.size() >= nodeLimit;
+    }
+
+    private boolean edgeLimitReached(Map<String, GraphEdge> edges, String edgeId) {
+        return !edges.containsKey(edgeId) && edges.size() >= edgeLimit;
+    }
+
+    private static void putEdge(Map<String, GraphEdge> edges, GraphEdge edge) {
+        edges.putIfAbsent(edge.id(), edge);
     }
 
     private static String preferredRole(List<String> roles, String fallback) {

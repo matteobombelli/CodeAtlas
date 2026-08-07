@@ -3,8 +3,10 @@ import {
   Suspense,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -58,6 +60,15 @@ export function App() {
   const [projectPath, setProjectPath] = useState('')
   const [addProjectError, setAddProjectError] = useState<string | null>(null)
   const [addingProject, setAddingProject] = useState(false)
+  const projectPicker = useRef<HTMLSelectElement>(null)
+  const config = useQuery({
+    queryKey: ['config'],
+    queryFn: repositoryApi.config,
+    staleTime: Infinity,
+  })
+  // Fail closed: mutation controls stay hidden until the server confirms this
+  // is a writable local deployment.
+  const readOnly = config.data?.readOnly ?? true
   const projects = useQuery({
     queryKey: ['repositories'],
     queryFn: repositoryApi.list,
@@ -90,10 +101,41 @@ export function App() {
     }
   }, [activeProjectId, defaultProject])
 
+  useEffect(() => {
+    if (readOnly) {
+      setShowAddProject(false)
+      setAddProjectError(null)
+    }
+  }, [readOnly])
+
   function closeAddProject() {
     if (addingProject) return
     setShowAddProject(false)
     setAddProjectError(null)
+    queueMicrotask(() => projectPicker.current?.focus())
+  }
+
+  function handleDialogKeyDown(event: ReactKeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeAddProject()
+      return
+    }
+    if (event.key !== 'Tab') return
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'input:not(:disabled), button:not(:disabled)',
+      ),
+    )
+    const first = focusable[0]
+    const last = focusable.at(-1)
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first?.focus()
+    }
   }
 
   async function addProject(event: FormEvent<HTMLFormElement>) {
@@ -133,8 +175,9 @@ export function App() {
         <label className={styles.projectPicker}>
           <span>Project</span>
           <select
+            ref={projectPicker}
             value={activeProject?.id ?? ''}
-            disabled={projects.isLoading}
+            disabled={projects.isLoading || config.isLoading}
             onChange={(event) => {
               if (event.target.value === ADD_PROJECT) {
                 setShowAddProject(true)
@@ -149,15 +192,26 @@ export function App() {
                 {project.displayName}
               </option>
             ))}
-            <option value={ADD_PROJECT}>Add another project…</option>
+            {!readOnly && (
+              <option value={ADD_PROJECT}>Add another project…</option>
+            )}
           </select>
         </label>
       </header>
 
       <main className={styles.map}>
-        {projects.isLoading && <p className={styles.state}>Loading project map</p>}
+        {projects.isLoading && (
+          <p className={styles.state} role="status">Loading project map</p>
+        )}
+        {config.isError && (
+          <p className={styles.error} role="alert">
+            Could not load deployment configuration.
+          </p>
+        )}
         {projects.isError && (
-          <p className={styles.error}>Could not load projects: {projects.error.message}</p>
+          <p className={styles.error} role="alert">
+            Could not load projects: {projects.error.message}
+          </p>
         )}
         {projects.data?.length === 0 && (
           <p className={styles.state}>No project is configured for analysis.</p>
@@ -169,9 +223,13 @@ export function App() {
               : `${activeProject.displayName} is not indexed`}
           </p>
         )}
-        {endpoints.isLoading && <p className={styles.state}>Loading project map</p>}
+        {endpoints.isLoading && (
+          <p className={styles.state} role="status">Loading project map</p>
+        )}
         {endpoints.isError && (
-          <p className={styles.error}>Could not load map: {endpoints.error.message}</p>
+          <p className={styles.error} role="alert">
+            Could not load map: {endpoints.error.message}
+          </p>
         )}
         {activeProject?.status === 'READY' && endpoints.data && (
           <Suspense fallback={<p className={styles.state}>Loading project map</p>}>
@@ -194,6 +252,7 @@ export function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="add-project-title"
+            onKeyDown={handleDialogKeyDown}
           >
             <form onSubmit={addProject}>
               <h2 id="add-project-title">Add local project</h2>

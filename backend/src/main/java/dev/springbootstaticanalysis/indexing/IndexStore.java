@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -35,15 +36,21 @@ public class IndexStore {
 
         UUID id = UUID.randomUUID();
         Instant now = Instant.now();
-        jdbc.update("""
-                INSERT INTO index_runs (
-                    id, repository_id, mode, status, phase, started_at
-                ) VALUES (:id, :repositoryId, :mode, 'QUEUED', 'QUEUED', :startedAt)
-                """, new MapSqlParameterSource()
-                .addValue("id", id)
-                .addValue("repositoryId", repositoryId)
-                .addValue("mode", mode.name())
-                .addValue("startedAt", Timestamp.from(now)));
+        try {
+            jdbc.update("""
+                    INSERT INTO index_runs (
+                        id, repository_id, mode, status, phase, started_at
+                    ) VALUES (:id, :repositoryId, :mode, 'QUEUED', 'QUEUED', :startedAt)
+                    """, new MapSqlParameterSource()
+                    .addValue("id", id)
+                    .addValue("repositoryId", repositoryId)
+                    .addValue("mode", mode.name())
+                    .addValue("startedAt", Timestamp.from(now)));
+        } catch (DuplicateKeyException exception) {
+            // The count guard can race under READ COMMITTED. The partial unique
+            // index is authoritative when two requests insert concurrently.
+            throw new ConflictException("Repository already has an active index run");
+        }
         jdbc.update("""
                 UPDATE repositories SET status = 'INDEXING' WHERE id = :repositoryId
                 """, Map.of("repositoryId", repositoryId));

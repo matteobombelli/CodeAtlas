@@ -7,6 +7,10 @@ allprojects {
     group = "dev.springbootstaticanalysis"
     version = "0.1.0"
 
+    // Temporary security overrides until the Spring Boot 3.5 BOM advances.
+    extra["jackson-bom.version"] = "2.21.5"
+    extra["postgresql.version"] = "42.7.12"
+
     repositories {
         mavenCentral()
     }

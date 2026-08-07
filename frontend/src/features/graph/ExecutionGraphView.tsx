@@ -369,6 +369,7 @@ export function ExecutionGraphView({
               <button
                 className={!incomingRootId ? styles.activeView : undefined}
                 type="button"
+                aria-pressed={!incomingRootId}
                 onClick={() => setIncomingRootId(null)}
               >
                 Dependencies
@@ -377,6 +378,7 @@ export function ExecutionGraphView({
               <button
                 className={incomingRootId ? styles.activeView : undefined}
                 type="button"
+                aria-pressed={Boolean(incomingRootId)}
                 onClick={() => setIncomingRootId(activeTarget.symbolId)}
               >
                 Blast radius
