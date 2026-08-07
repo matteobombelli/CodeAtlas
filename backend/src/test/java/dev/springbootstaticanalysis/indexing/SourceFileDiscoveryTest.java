@@ -1,10 +1,12 @@
 package dev.springbootstaticanalysis.indexing;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.springbootstaticanalysis.shared.SpringBootStaticAnalysisProperties;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,6 +31,26 @@ class SourceFileDiscoveryTest {
         assertThat(described.contentHash()).hasSize(64);
     }
 
+    @Test
+    void rejectsSymlinkedJavaFilesOutsideTheRepository() throws Exception {
+        Path outside = Files.createTempFile("outside-source", ".java");
+        Files.writeString(outside, "class Outside {}\n");
+        Path link = root.resolve("src/main/java/demo/Escape.java");
+        Files.createDirectories(link.getParent());
+        try {
+            Files.createSymbolicLink(link, outside);
+        } catch (UnsupportedOperationException | java.io.IOException exception) {
+            Assumptions.assumeTrue(false, "Symbolic links are unavailable");
+        }
+
+        SourceFileDiscovery discovery = discovery();
+
+        assertThat(discovery.discover(root)).doesNotContain(link);
+        assertThatThrownBy(() -> discovery.describe(root, link))
+                .isInstanceOf(dev.springbootstaticanalysis.shared.InvalidRequestException.class)
+                .hasMessageContaining("escapes the repository");
+    }
+
     private Path source(String relative, String content) throws Exception {
         Path file = root.resolve(relative);
         Files.createDirectories(file.getParent());
@@ -40,6 +62,8 @@ class SourceFileDiscoveryTest {
                 root,
                 1_048_576,
                 10_000,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10)));
+                false,
+                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
+                new SpringBootStaticAnalysisProperties.Graph(100, 250)));
     }
 }

@@ -111,9 +111,11 @@ export function CodeNavigator({
       <div className={styles.navigationBody}>
         {searching ? (
           <>
-            {search.isLoading && <p className={styles.navMessage}>Searching</p>}
+            {search.isLoading && (
+              <p className={styles.navMessage} role="status">Searching</p>
+            )}
             {search.isError && (
-              <p className={styles.navError}>{search.error.message}</p>
+              <p className={styles.navError} role="alert">{search.error.message}</p>
             )}
             {search.data && (
               <div className={styles.searchResults}>

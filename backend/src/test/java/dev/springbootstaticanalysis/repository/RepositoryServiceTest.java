@@ -44,6 +44,8 @@ class RepositoryServiceTest {
                 root,
                 1_048_576,
                 10_000,
-                new SpringBootStaticAnalysisProperties.Indexing(1, 10)));
+                false,
+                new SpringBootStaticAnalysisProperties.Indexing(1, 10),
+                new SpringBootStaticAnalysisProperties.Graph(100, 250)));
     }
 }

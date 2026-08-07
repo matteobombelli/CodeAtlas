@@ -15,11 +15,15 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
 public class IndexingService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(IndexingService.class);
 
     private final IndexStore indexStore;
     private final RepositoryService repositoryService;
@@ -100,9 +104,29 @@ public class IndexingService {
                 indexStore.complete(repositoryId, runId, analysis);
             }
         } catch (Exception exception) {
-            String code = exception instanceof RepositoryChangedDuringIndexException
-                    ? "REPOSITORY_CHANGED_DURING_INDEX" : "INDEXING_FAILED";
-            indexStore.fail(repositoryId, runId, code, exception.getMessage());
+            if (exception instanceof RepositoryChangedDuringIndexException) {
+                indexStore.fail(
+                        repositoryId,
+                        runId,
+                        "REPOSITORY_CHANGED_DURING_INDEX",
+                        "Repository contents changed while indexing; retry the index run");
+                LOGGER.info(
+                        "Index run {} for repository {} stopped because source files changed",
+                        runId,
+                        repositoryId);
+                return;
+            }
+            String reference = runId.toString();
+            LOGGER.error(
+                    "Index run {} for repository {} failed",
+                    runId,
+                    repositoryId,
+                    exception);
+            indexStore.fail(
+                    repositoryId,
+                    runId,
+                    "INDEXING_FAILED",
+                    "Indexing failed; check backend logs for run " + reference);
         }
     }
 

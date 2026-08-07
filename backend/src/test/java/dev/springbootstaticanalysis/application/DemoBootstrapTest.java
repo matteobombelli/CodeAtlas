@@ -21,7 +21,11 @@ class DemoBootstrapTest {
     private final RepositoryService repositories = org.mockito.Mockito.mock(RepositoryService.class);
     private final IndexingService indexing = org.mockito.Mockito.mock(IndexingService.class);
     private final DemoBootstrapProperties properties =
-            new DemoBootstrapProperties(true, "Spring Boot Static Analysis", "spring-boot-static-analysis");
+            new DemoBootstrapProperties(
+                    true,
+                    "Spring Boot Static Analysis",
+                    "spring-boot-static-analysis",
+                    true);
 
     @Test
     void registersAndIndexesTheConfiguredDemo() {
@@ -37,7 +41,7 @@ class DemoBootstrapTest {
     }
 
     @Test
-    void leavesAnIndexedDemoUntouched() {
+    void refreshesAnIndexedDemoIncrementally() {
         RegisteredRepository repository = repository(UUID.randomUUID());
         when(repositories.list()).thenReturn(List.of(repository));
 
@@ -45,7 +49,7 @@ class DemoBootstrapTest {
                 .run(new DefaultApplicationArguments());
 
         verify(repositories, never()).register("Spring Boot Static Analysis", "spring-boot-static-analysis");
-        verify(indexing, never()).start(repository.id(), IndexMode.FULL);
+        verify(indexing).start(repository.id(), IndexMode.INCREMENTAL);
     }
 
     private RegisteredRepository repository(UUID activeRunId) {

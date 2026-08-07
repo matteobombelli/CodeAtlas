@@ -1,3 +1,5 @@
+import { apiUrl } from './http'
+
 export type Repository = {
   id: string
   displayName: string
@@ -77,8 +79,12 @@ export type CodeSearchResponse = {
   files: CodeSearchResult[]
 }
 
+export type ClientConfig = {
+  readOnly: boolean
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
+  const response = await fetch(apiUrl(path), init)
   if (!response.ok) {
     const problem = (await response.json().catch(() => null)) as { detail?: string } | null
     throw new Error(problem?.detail ?? `Request failed with ${response.status}`)
@@ -87,6 +93,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const repositoryApi = {
+  config: () => request<ClientConfig>('/api/config'),
   list: () => request<Repository[]>('/api/repositories'),
   create: (displayName: string, relativePath: string) =>
     request<Repository>('/api/repositories', {

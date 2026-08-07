@@ -1,0 +1,56 @@
+# Production overlay:
+#
+#   SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD='<strong-random-value>' \
+#     docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+#
+# Only the frontend is published, on loopback, for a TLS reverse proxy to reach.
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD:?database password is required}
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  backend:
+    restart: unless-stopped
+    environment:
+      SPRING_BOOT_STATIC_ANALYSIS_DATABASE_PASSWORD: ${SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD:?database password is required}
+      SPRING_BOOT_STATIC_ANALYSIS_READ_ONLY: "true"
+    mem_limit: 1g
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  frontend:
+    restart: unless-stopped
+    build:
+      args:
+        VITE_BASE_PATH: ${SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH:-/}
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  spring-boot-static-analysis-postgres:
+    name: ${SPRING_BOOT_STATIC_ANALYSIS_DB_VOLUME:-spring-boot-static-analysis-prod-postgres}

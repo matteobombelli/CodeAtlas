@@ -55,6 +55,43 @@ make test
 make clean
 ```
 
+## Public deployment
+
+The supported public configuration is the read-only production overlay. Start
+it on a clean host with a strong, randomly generated database password:
+
+```bash
+export SPRING_BOOT_STATIC_ANALYSIS_DB_PASSWORD='<strong-random-value>'
+export SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH='/'
+docker compose -f compose.yaml -f compose.prod.yaml up -d --build --wait
+```
+
+The frontend listens only on `127.0.0.1:3000` by default. Put an HTTPS reverse proxy in
+front of that address and keep the backend and PostgreSQL off the host network.
+Set `SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT` before starting Compose if the
+proxy needs a different loopback port.
+If the site lives below a prefix such as `/projects/spring-boot-static-analysis/`,
+set `SPRING_BOOT_STATIC_ANALYSIS_BASE_PATH` to that exact trailing-slash path and
+configure the proxy to strip the prefix before forwarding.
+
+The overlay sets `SPRING_BOOT_STATIC_ANALYSIS_READ_ONLY=true`. The backend then
+rejects every non-GET/HEAD/OPTIONS request under `/api/` with `405`, while the
+frontend hides project registration and indexing controls. Configure TLS,
+request limits, access-log retention, and monitoring at the reverse proxy.
+
+Back up the named PostgreSQL volume regularly. A portable logical backup can be
+created with:
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml exec -T postgres \
+  pg_dump -U spring_boot_static_analysis -Fc spring_boot_static_analysis \
+  > spring-boot-static-analysis.dump
+```
+
+Test restoring that dump before relying on it. Do not reuse the local demo
+volume in production; the overlay defaults to the separate
+`spring-boot-static-analysis-prod-postgres` volume.
+
 ## Development
 
 Requirements:
@@ -140,4 +177,5 @@ See [limitations](docs/limitations.md) for the full boundary.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for bundled
+dependencies with separate licenses.

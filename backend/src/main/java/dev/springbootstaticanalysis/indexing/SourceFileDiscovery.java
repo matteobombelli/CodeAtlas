@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,11 +32,18 @@ public class SourceFileDiscovery {
 
     public List<Path> discover(Path repositoryRoot) {
         List<Path> results = new ArrayList<>();
+        Path approvedRoot;
+        try {
+            approvedRoot = repositoryRoot.toRealPath();
+        } catch (IOException exception) {
+            throw new InvalidRequestException("Repository root cannot be resolved", exception);
+        }
         try (var paths = Files.walk(repositoryRoot)) {
-            paths.filter(Files::isRegularFile)
+            paths.filter(path -> Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS))
                     .filter(path -> path.getFileName().toString().endsWith(".java"))
                     .filter(path -> !isExcluded(repositoryRoot.relativize(path)))
                     .filter(path -> isConventionalSource(repositoryRoot.relativize(path)))
+                    .filter(path -> isInsideRepository(approvedRoot, path))
                     .forEach(results::add);
         } catch (IOException exception) {
             throw new InvalidRequestException("Java source discovery failed", exception);
@@ -50,6 +58,10 @@ public class SourceFileDiscovery {
 
     public DiscoveredSourceFile describe(Path root, Path file) {
         try {
+            if (!isInsideRepository(root.toRealPath(), file)) {
+                throw new InvalidRequestException(
+                        "Source file escapes the repository: " + root.relativize(file));
+            }
             long size = Files.size(file);
             if (size > properties.maxSourceFileBytes()) {
                 throw new InvalidRequestException(
@@ -68,6 +80,18 @@ public class SourceFileDiscovery {
                     size);
         } catch (IOException exception) {
             throw new InvalidRequestException("Source file could not be read: " + file, exception);
+        }
+    }
+
+    /**
+     * Rejects symlinked source files and verifies the resolved path remains under
+     * the approved repository root before any source content is read.
+     */
+    private boolean isInsideRepository(Path approvedRoot, Path file) {
+        try {
+            return !Files.isSymbolicLink(file) && file.toRealPath().startsWith(approvedRoot);
+        } catch (IOException exception) {
+            return false;
         }
     }
 

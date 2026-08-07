@@ -6,5 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record DemoBootstrapProperties(
         boolean enabled,
         String displayName,
-        String relativePath) {
+        String relativePath,
+        boolean reindexOnStartup) {
 }

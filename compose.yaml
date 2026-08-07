@@ -35,17 +35,19 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-    ports:
-      - "8080:8080"
-
   frontend:
     build:
       context: frontend
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/ | grep -q '<div id=\"root\">'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
     ports:
-      - "3000:80"
+      - "127.0.0.1:${SPRING_BOOT_STATIC_ANALYSIS_FRONTEND_PORT:-3000}:8080"
 
 volumes:
   spring-boot-static-analysis-postgres:

@@ -64,6 +64,9 @@ afterEach(() => {
 test('opens the self-analysis project directly in the map', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
+    if (url === '/api/config') {
+      return json({ readOnly: true })
+    }
     if (url === '/api/repositories') {
       return json(projects)
     }
@@ -102,11 +105,17 @@ test('opens the self-analysis project directly in the map', async () => {
   expect(screen.queryByText('Add repository')).not.toBeInTheDocument()
   expect(screen.queryByText('Rescan repository')).not.toBeInTheDocument()
   expect(screen.queryByText('Remove repository')).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('option', { name: 'Add another project…' }),
+  ).not.toBeInTheDocument()
 })
 
 test('switches the map when another indexed project is selected', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
+    if (url === '/api/config') {
+      return json({ readOnly: true })
+    }
     if (url === '/api/repositories') {
       return json(projects)
     }
@@ -145,6 +154,9 @@ test('switches the map when another indexed project is selected', async () => {
 test('opens the code browser for an indexed project with no endpoints', async () => {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = input.toString()
+    if (url === '/api/config') {
+      return json({ readOnly: true })
+    }
     if (url === '/api/repositories') {
       return json([
         {
@@ -175,6 +187,9 @@ test('registers and indexes another local project from the selector', async () =
       method: init?.method ?? 'GET',
       body: typeof init?.body === 'string' ? init.body : undefined,
     })
+    if (url === '/api/config') {
+      return json({ readOnly: false })
+    }
     if (url === '/api/repositories' && init?.method === 'POST') {
       created = true
       return json({

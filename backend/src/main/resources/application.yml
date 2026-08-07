@@ -25,10 +25,15 @@ spring-boot-static-analysis:
   repositories-root: ${SPRING_BOOT_STATIC_ANALYSIS_REPOSITORIES_ROOT:/workspace/repositories}
   max-source-file-bytes: 1048576
   max-source-files: 10000
+  read-only: ${SPRING_BOOT_STATIC_ANALYSIS_READ_ONLY:false}
   indexing:
     max-concurrent-jobs: 1
     queue-capacity: 10
+  graph:
+    max-nodes: ${SPRING_BOOT_STATIC_ANALYSIS_GRAPH_MAX_NODES:100}
+    max-edges: ${SPRING_BOOT_STATIC_ANALYSIS_GRAPH_MAX_EDGES:250}
   demo:
     enabled: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_ENABLED:false}
     display-name: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_DISPLAY_NAME:Spring Boot Static Analysis source}
     relative-path: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_RELATIVE_PATH:spring-boot-static-analysis}
+    reindex-on-startup: ${SPRING_BOOT_STATIC_ANALYSIS_DEMO_REINDEX_ON_STARTUP:true}
